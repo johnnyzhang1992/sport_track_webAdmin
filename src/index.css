@@ -1,0 +1,115 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  background: #f5f6f8;
+  color: #1f2329;
+}
+
+/* 品牌区 */
+.brand {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid #f0f2f5;
+  font-weight: 700;
+  font-size: 16px;
+  color: #0052d9;
+  letter-spacing: 0.5px;
+}
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0052d9, #2b6cf6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* 侧边栏 */
+.side-menu {
+  padding-top: 8px;
+}
+
+/* 顶栏 */
+.topbar {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px; /* 垂直内边距 */
+  background: #fff;
+  border-bottom: 1px solid #f0f2f5;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2329;
+}
+
+/* 页面卡片统一 */
+.page-card {
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* 统计卡 */
+.stat-card .t-statistic {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stat-card .t-statistic__title {
+  font-size: 14px;
+  color: #8a93a6;
+}
+.stat-card .t-statistic__value {
+  font-size: 30px;
+  font-weight: 700;
+  color: #1f2329;
+}
+.stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 10px;
+}
+.stat-icon-blue { background: #e8f1ff; }
+.stat-icon-green { background: #e5f8ec; }
+.stat-icon-orange { background: #fff3e8; }
+.stat-icon-purple { background: #f1e8ff; }
+
+/* 登录页 */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e8f1ff 0%, #f5f6f8 60%);
+}
+.login-card {
+  width: 380px;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+.login-title {
+  text-align: center;
+  margin-bottom: 4px;
+}
+.login-sub {
+  text-align: center;
+  color: #8a93a6;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
