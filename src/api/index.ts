@@ -2,7 +2,8 @@
 
 const TOKEN_KEY = 'admin_token'
 const USERNAME_KEY = 'admin_username'
-const API_BASE = '/sport-track/api'
+// dev 走 vite 代理（相对路径）；生产用 VITE_API_BASE 绝对地址（独立子域跨域调用 api.historybook.cn）
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || '/sport-track/api'
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
