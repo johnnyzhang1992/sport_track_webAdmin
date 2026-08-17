@@ -12,5 +12,7 @@ RUN npm run build
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
+# 老内核（CentOS7/3.10）Docker 对 /run(tmpfs) 写 pid 会 EPERM → 改到 /tmp
+RUN sed -i 's|^pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
