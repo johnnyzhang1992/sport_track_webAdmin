@@ -60,35 +60,46 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-/* 统计卡 */
-.stat-card .t-statistic {
+/* 指标卡（数据仪表盘：轻边框 + 数据呼吸） */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.metric-card {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid #eef0f3;
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.2s;
 }
-.stat-card .t-statistic__title {
-  font-size: 14px;
-  color: #8a93a6;
+.metric-card:hover {
+  border-color: #d6dce4;
 }
-.stat-card .t-statistic__value {
-  font-size: 30px;
-  font-weight: 700;
-  color: #1f2329;
-}
-.stat-icon {
+.metric-icon {
   width: 44px;
   height: 44px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  margin-bottom: 10px;
+  flex-shrink: 0;
 }
-.stat-icon-blue { background: #e8f1ff; }
-.stat-icon-green { background: #e5f8ec; }
-.stat-icon-orange { background: #fff3e8; }
-.stat-icon-purple { background: #f1e8ff; }
+.metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2329;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.metric-label {
+  font-size: 13px;
+  color: #8a93a6;
+  margin-top: 2px;
+}
 
 /* 登录页 */
 .login-page {

@@ -2,7 +2,7 @@
 
 const TOKEN_KEY = 'admin_token'
 const USERNAME_KEY = 'admin_username'
-const API_BASE = '/api'
+const API_BASE = '/sport-track/api'
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -49,6 +49,12 @@ export const adminApi = {
   overview: () => request<{ userCount: number; activityCount: number; finishedCount: number; totalDistanceKm: number }>('/admin/overview'),
   users: (page = 1, pageSize = 20, keyword = '') =>
     request<{ total: number; page: number; items: unknown[] }>(`/admin/users?page=${page}&pageSize=${pageSize}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`),
+  adminStats: () =>
+    request<{ today: { newUsers: number; newActivities: number; uv: number; pv: number }; week: { newUsers: number; newActivities: number; uv: number; pv: number }; month: { newUsers: number; newActivities: number; uv: number; pv: number } }>('/admin/stats'),
+  adminTrend: (type = 'day') =>
+    request<{ type: string; data: { date: string; newUsers: number; newActivities: number }[] }>(`/admin/trend?type=${type}`),
+  regionStats: () =>
+    request<{ provinces: { name: string; count: number }[]; cities: { name: string; count: number }[] }>('/admin/region-stats'),
   activities: (page = 1, pageSize = 20, filters: Record<string, string> = {}) => {
     const qs = Object.entries(filters)
       .filter(([, v]) => v !== '' && v != null)

@@ -7,8 +7,8 @@ export default defineConfig({
   server: {
     port: 5177, // 管理后台 dev 端口
     proxy: {
-      // 开发时 /api 转发到后端（管理接口前缀 /api/admin）
-      '/api': {
+      // 开发时 /sport-track/api 转发到后端（与线上 nginx 前缀一致，路径原样透传）
+      '/sport-track/api': {
         target: 'http://127.0.0.1:3004',
         changeOrigin: true,
       },
