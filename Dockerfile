@@ -1,5 +1,5 @@
-# webAdmin 多阶段构建：npm ci → nginx 静态服务（sport.historybook.cn）
-# 用 npm（非 pnpm/corepack）：规避 pnpm sqlite store 在部分 Docker overlay fs 上的 EPERM/disk I/O 问题
+# webAdmin 多阶段构建：npm ci → node 静态服务（sport.historybook.cn）
+# 用 node 静态服务器（非 nginx）：无 pid/写盘依赖，规避老内核容器 EPERM
 FROM node:22-alpine AS build
 WORKDIR /app
 # 国内镜像源（构建加速）
@@ -10,9 +10,9 @@ COPY . .
 ENV VITE_API_BASE=https://api.historybook.cn/sport-track/api
 RUN npm run build
 
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-# 老内核（CentOS7/3.10）Docker 对 /run(tmpfs) 写 pid 会 EPERM → 改到 /tmp
-RUN sed -i 's|^pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+COPY server.js ./
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]
