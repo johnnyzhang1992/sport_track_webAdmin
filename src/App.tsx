@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Input, Button, Card, MessagePlugin } from 'tdesign-react'
 import BasicLayout from './components/BasicLayout'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
+import UserDetail from './pages/UserDetail'
 import Activities from './pages/Activities'
 import { getToken, setToken, saveUsername, adminApi } from './api'
 
@@ -12,6 +13,8 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirect = searchParams.get('redirect')
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -24,7 +27,12 @@ function LoginPage() {
       setToken(token)
       saveUsername(username)
       MessagePlugin.success('登录成功')
-      navigate('/dashboard')
+      // 回跳跳转前页面；仅允许站内路径（防 open redirect）
+      if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+        navigate(redirect, { replace: true })
+      } else {
+        navigate('/dashboard')
+      }
     } catch (e) {
       MessagePlugin.error((e as Error).message || '登录失败')
     } finally {
@@ -36,7 +44,7 @@ function LoginPage() {
     <div className="login-page">
       <Card className="login-card">
         <div className="login-title" style={{ fontSize: 20, fontWeight: 700, color: '#0052d9' }}>小迹一下 · 管理后台</div>
-        <div className="login-sub">运动轨迹小程序数据管理</div>
+        <div className="login-sub">{redirect ? '登录已过期，请重新登录' : '运动轨迹小程序数据管理'}</div>
         <div style={{ marginBottom: 16 }}>
           <Input
             placeholder="管理员用户名"
@@ -84,6 +92,7 @@ export default function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/users" element={<Users />} />
+                <Route path="/users/:id" element={<UserDetail />} />
                 <Route path="/activities" element={<Activities />} />
               </Routes>
             </BasicLayout>

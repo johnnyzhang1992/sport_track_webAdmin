@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Table, Tag, Input, Button, Select, InputNumber } from 'tdesign-react'
 import { adminApi } from '../api'
+import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtDateTime } from '../utils/format'
+import ActivityDetailDialog from '../components/ActivityDetailDialog'
 
 interface Activity {
   id: string
+  userId: string
   userNickname: string
   type: string
   status: string
@@ -11,7 +15,7 @@ interface Activity {
   duration: number
   calories: number
   elevationGain: number
-  startTime: string
+  startTime: number
 }
 
 const TYPE_OPTIONS = [
@@ -30,13 +34,16 @@ const STATUS_OPTIONS = [
   { label: '全部状态', value: '' },
   { label: '已完成', value: 'finished' },
   { label: '进行中', value: 'in_progress' },
+  { label: '已作废', value: 'cancelled' },
 ]
 
 export default function Activities() {
+  const navigate = useNavigate()
   const [data, setData] = useState<Activity[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [detailId, setDetailId] = useState<string | null>(null)
 
   // 筛选
   const [type, setType] = useState('')
@@ -90,13 +97,8 @@ export default function Activities() {
     setTimeout(() => load(1), 0)
   }
 
-  const fmtDur = (sec: number) => {
-    const h = Math.floor(sec / 3600)
-    const m = Math.floor((sec % 3600) / 60)
-    return h > 0 ? `${h}小时${m}分` : `${m}分钟`
-  }
-
   return (
+    <>
     <Card className="page-card" title={`轨迹列表（${total}）`}>
       <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
         <Select style={{ width: 130 }} value={type} options={TYPE_OPTIONS} onChange={(v) => setType(String(v))} />
@@ -146,13 +148,39 @@ export default function Activities() {
         rowKey="id"
         loading={loading}
         columns={[
-          { colKey: 'userNickname', title: '用户' },
-          { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{TYPE_OPTIONS.find((o) => o.value === row.type)?.label || row.type}</Tag> },
-          { colKey: 'status', title: '状态', cell: ({ row }) => <Tag theme={row.status === 'finished' ? 'success' : 'warning'}>{row.status === 'finished' ? '已完成' : '进行中'}</Tag> },
-          { colKey: 'distance', title: '距离 km', cell: ({ row }) => ((row.distance || 0) / 1000).toFixed(1) },
-          { colKey: 'duration', title: '时长', cell: ({ row }) => fmtDur(row.duration || 0) },
+          {
+            colKey: 'userNickname',
+            title: '用户',
+            cell: ({ row }) => (
+              <Button theme="primary" variant="text" style={{ padding: 0 }} onClick={() => navigate(`/users/${row.userId}`)}>
+                {row.userNickname || '微信用户'}
+              </Button>
+            ),
+          },
+          { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{typeLabel(row.type)}</Tag> },
+          {
+            colKey: 'status',
+            title: '状态',
+            cell: ({ row }) => (
+              <Tag theme={row.status === 'finished' ? 'success' : row.status === 'cancelled' ? 'danger' : 'warning'}>
+                {STATUS_LABELS[row.status] || row.status}
+              </Tag>
+            ),
+          },
+          { colKey: 'distance', title: '距离 km', cell: ({ row }) => fmtKm(row.distance || 0) },
+          { colKey: 'duration', title: '时长', cell: ({ row }) => fmtDuration(row.duration || 0) },
           { colKey: 'calories', title: '千卡' },
-          { colKey: 'startTime', title: '开始时间', cell: ({ row }) => new Date(row.startTime).toLocaleString() },
+          { colKey: 'startTime', title: '开始时间', cell: ({ row }) => fmtDateTime(row.startTime) },
+          {
+            colKey: 'op',
+            title: '操作',
+            width: 80,
+            cell: ({ row }) => (
+              <Button size="small" theme="primary" variant="text" onClick={() => setDetailId(row.id)}>
+                详情
+              </Button>
+            ),
+          },
         ]}
         pagination={{
           total,
@@ -166,5 +194,8 @@ export default function Activities() {
         }}
       />
     </Card>
+
+    <ActivityDetailDialog id={detailId} onClose={() => setDetailId(null)} />
+    </>
   )
 }
