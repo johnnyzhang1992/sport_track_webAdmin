@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Tag, Button, Table, Loading, MessagePlugin, Select } from 'tdesign-react'
+import type { TableSort } from 'tdesign-react'
 import { ArrowLeft, MapPin, Trophy } from '@phosphor-icons/react'
 import { adminApi, type UserDetail as UserDetailData, type BestRow } from '../api'
 import { typeLabel, TYPE_LABELS, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime } from '../utils/format'
@@ -40,7 +41,8 @@ export default function UserDetail() {
   const [actPage, setActPage] = useState(1)
   const [actLoading, setActLoading] = useState(false)
   const [actTypeFilter, setActTypeFilter] = useState<string>('')
-  const [actStatusFilter, setActStatusFilter] = useState<string>('')
+  const [actStatusFilter, setActStatusFilter] = useState<string>('finished')
+  const [actSort, setActSort] = useState<TableSort>()
 
   useEffect(() => {
     adminApi
@@ -49,11 +51,17 @@ export default function UserDetail() {
       .catch((e) => MessagePlugin.error((e as Error).message || '加载用户详情失败'))
   }, [id])
 
-  const loadActs = (p: number, typeFilter?: string, statusFilter?: string) => {
+  const loadActs = (p: number, typeFilter?: string, statusFilter?: string, sortVal?: TableSort) => {
     setActLoading(true)
     const filters: Record<string, string> = { userId: id }
     if (typeFilter ?? actTypeFilter) filters.type = typeFilter ?? actTypeFilter
-    if (statusFilter ?? actStatusFilter) filters.status = statusFilter ?? actStatusFilter
+    const sf = statusFilter ?? actStatusFilter
+    if (sf) filters.status = sf
+    const s = sortVal ?? actSort
+    const sortBy = (s as { sortBy?: string })?.sortBy || ''
+    const order = (s as { descending?: boolean })?.descending ? 'desc' : sortBy ? 'asc' : ''
+    if (sortBy) filters.sortBy = sortBy
+    if (order) filters.order = order
     adminApi
       .activities(p, 10, filters)
       .then((d) => {
@@ -277,6 +285,12 @@ export default function UserDetail() {
           data={acts}
           rowKey="id"
           loading={actLoading}
+          sort={actSort}
+          onSortChange={(s) => {
+            setActSort(s)
+            setActPage(1)
+            loadActs(1, undefined, undefined, s)
+          }}
           columns={[
             { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{typeLabel(row.type)}</Tag> },
             {
@@ -288,8 +302,8 @@ export default function UserDetail() {
                 </Tag>
               ),
             },
-            { colKey: 'distance', title: '距离 km', cell: ({ row }) => fmtKm(row.distance || 0) },
-            { colKey: 'duration', title: '时长', cell: ({ row }) => fmtDuration(row.duration || 0) },
+            { colKey: 'distance', title: '距离 km', sorter: true, cell: ({ row }) => fmtKm(row.distance || 0) },
+            { colKey: 'duration', title: '时长', sorter: true, cell: ({ row }) => fmtDuration(row.duration || 0) },
             { colKey: 'calories', title: '千卡' },
             { colKey: 'startTime', title: '开始时间', cell: ({ row }) => fmtDateTime(row.startTime) },
             {
