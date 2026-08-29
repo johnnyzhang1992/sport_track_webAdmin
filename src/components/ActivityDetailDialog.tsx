@@ -3,6 +3,7 @@ import { Dialog, Tag, Loading, MessagePlugin } from 'tdesign-react'
 import * as echarts from 'echarts'
 import { adminApi, type ActivityDetail } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime, haversine } from '../utils/format'
+import TrackMap from './TrackMap'
 
 const MARKER_LABELS: Record<string, { label: string; theme: 'primary' | 'success' | 'warning' | 'default' }> = {
   checkpoint: { label: '打卡', theme: 'primary' },
@@ -20,6 +21,7 @@ interface Props {
 export default function ActivityDetailDialog({ id, onClose }: Props) {
   const [detail, setDetail] = useState<ActivityDetail | null>(null)
   const [loading, setLoading] = useState(false)
+  const [extent, setExtent] = useState<{ widthKm: number; heightKm: number } | null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
 
@@ -27,6 +29,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
     if (!id) return
     setLoading(true)
     setDetail(null)
+    setExtent(null)
     adminApi
       .activityDetail(id)
       .then(setDetail)
@@ -159,6 +162,41 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
               备注：{detail.note}
             </div>
           )}
+
+          {/* 轨迹地图 */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>轨迹地图</div>
+            {detail.trackPoints.length >= 2 ? (
+              <>
+                <TrackMap points={detail.trackPoints} markers={detail.markers} height={360} onExtent={setExtent} />
+                <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12, color: '#8a93a6', alignItems: 'center' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#00a870', display: 'inline-block' }} />
+                    起点
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#e34d59', display: 'inline-block' }} />
+                    终点
+                  </span>
+                  {detail.markers.length > 0 && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ed7b2f', display: 'inline-block' }} />
+                      打点
+                    </span>
+                  )}
+                  {extent && (
+                    <span style={{ marginLeft: 'auto' }}>
+                      实际范围约 {extent.widthKm} × {extent.heightKm} km
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: '24px 0', textAlign: 'center', color: '#8a93a6', fontSize: 13, background: '#f8f9fb', borderRadius: 8 }}>
+                该轨迹无轨迹点数据
+              </div>
+            )}
+          </div>
 
           {/* 海拔/速度剖面 */}
           <div ref={chartRef} style={{ height: 220, marginBottom: 16 }} />
