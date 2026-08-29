@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Table, Tag, Input, Button, Select, InputNumber } from 'tdesign-react'
+import type { TableSort } from 'tdesign-react'
 import { adminApi } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
@@ -45,14 +46,15 @@ export default function Activities() {
   const [loading, setLoading] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
 
-  // 筛选
+  // 筛选（状态默认已完成）
   const [type, setType] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState('finished')
   const [minDist, setMinDist] = useState<number | undefined>()
   const [maxDist, setMaxDist] = useState<number | undefined>()
   const [minDur, setMinDur] = useState<number | undefined>()
   const [maxDur, setMaxDur] = useState<number | undefined>()
   const [keyword, setKeyword] = useState('')
+  const [sort, setSort] = useState<TableSort>()
 
   const buildFilters = () => ({
     type,
@@ -62,6 +64,8 @@ export default function Activities() {
     maxDistance: maxDist != null ? String(maxDist) : '',
     minDuration: minDur != null ? String(minDur) : '',
     maxDuration: maxDur != null ? String(maxDur) : '',
+    sortBy: (sort as { sortBy?: string })?.sortBy || '',
+    order: (sort as { descending?: boolean })?.descending ? 'desc' : (sort as { sortBy?: string })?.sortBy ? 'asc' : '',
   })
 
   const load = (p: number) => {
@@ -87,12 +91,13 @@ export default function Activities() {
 
   const handleReset = () => {
     setType('')
-    setStatus('')
+    setStatus('finished')
     setMinDist(undefined)
     setMaxDist(undefined)
     setMinDur(undefined)
     setMaxDur(undefined)
     setKeyword('')
+    setSort(undefined)
     setPage(1)
     setTimeout(() => load(1), 0)
   }
@@ -147,6 +152,12 @@ export default function Activities() {
         data={data}
         rowKey="id"
         loading={loading}
+        sort={sort}
+        onSortChange={(s) => {
+          setSort(s)
+          setPage(1)
+          load(1)
+        }}
         columns={[
           {
             colKey: 'userNickname',
@@ -167,8 +178,8 @@ export default function Activities() {
               </Tag>
             ),
           },
-          { colKey: 'distance', title: '距离 km', cell: ({ row }) => fmtKm(row.distance || 0) },
-          { colKey: 'duration', title: '时长', cell: ({ row }) => fmtDuration(row.duration || 0) },
+          { colKey: 'distance', title: '距离 km', sorter: true, cell: ({ row }) => fmtKm(row.distance || 0) },
+          { colKey: 'duration', title: '时长', sorter: true, cell: ({ row }) => fmtDuration(row.duration || 0) },
           { colKey: 'calories', title: '千卡' },
           { colKey: 'startTime', title: '开始时间', cell: ({ row }) => fmtDateTime(row.startTime) },
           {
