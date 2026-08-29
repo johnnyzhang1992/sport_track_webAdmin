@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Table, Tag, Input, Button, Space } from 'tdesign-react'
+import type { TableSort } from 'tdesign-react'
 import { adminApi } from '../api'
 
 interface User {
@@ -21,11 +22,14 @@ export default function Users() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [sort, setSort] = useState<TableSort>({ sortBy: 'lastLoginAt', descending: true })
 
-  const load = (p: number, kw = keyword) => {
+  const load = (p: number, kw = keyword, s = sort) => {
     setLoading(true)
+    const sortBy = (s as { sortBy?: string })?.sortBy || ''
+    const order = (s as { descending?: boolean })?.descending ? 'desc' : 'asc'
     adminApi
-      .users(p, 20, kw)
+      .users(p, 20, kw, sortBy, order)
       .then((d) => {
         setData(d.items as User[])
         setTotal(d.total)
@@ -65,6 +69,12 @@ export default function Users() {
         data={data}
         rowKey="id"
         loading={loading}
+        sort={sort}
+        onSortChange={(s) => {
+          setSort(s)
+          setPage(1)
+          load(1, keyword, s)
+        }}
         columns={[
           {
             colKey: 'nickname',
@@ -80,8 +90,8 @@ export default function Users() {
           { colKey: 'weightKg', title: '体重 kg' },
           { colKey: 'heightCm', title: '身高 cm' },
           { colKey: 'activityCount', title: '轨迹数', cell: ({ row }) => <Tag>{row.activityCount ?? 0}</Tag> },
-          { colKey: 'createdAt', title: '创建时间', cell: ({ row }) => fmtTime(row.createdAt) },
-          { colKey: 'lastLoginAt', title: '最后登录', cell: ({ row }) => fmtTime(row.lastLoginAt) },
+          { colKey: 'createdAt', title: '创建时间', sorter: true, cell: ({ row }) => fmtTime(row.createdAt) },
+          { colKey: 'lastLoginAt', title: '最后登录', sorter: true, cell: ({ row }) => fmtTime(row.lastLoginAt) },
           {
             colKey: 'op',
             title: '操作',

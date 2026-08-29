@@ -163,8 +163,8 @@ export const adminApi = {
   changePassword: (oldPassword: string, newPassword: string) =>
     request<null>('/admin/password', { method: 'PUT', body: { oldPassword, newPassword } }),
   overview: () => request<{ userCount: number; activityCount: number; finishedCount: number; totalDistanceKm: number }>('/admin/overview'),
-  users: (page = 1, pageSize = 20, keyword = '') =>
-    request<{ total: number; page: number; items: unknown[] }>(`/admin/users?page=${page}&pageSize=${pageSize}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`),
+  users: (page = 1, pageSize = 20, keyword = '', sortBy = '', order = '') =>
+    request<{ total: number; page: number; items: unknown[] }>(`/admin/users?page=${page}&pageSize=${pageSize}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}${sortBy ? `&sortBy=${sortBy}` : ''}${order ? `&order=${order}` : ''}`),
   adminStats: () =>
     request<{ today: { newUsers: number; newActivities: number; uv: number; pv: number }; week: { newUsers: number; newActivities: number; uv: number; pv: number }; month: { newUsers: number; newActivities: number; uv: number; pv: number } }>('/admin/stats'),
   adminTrend: (type = 'day') =>
