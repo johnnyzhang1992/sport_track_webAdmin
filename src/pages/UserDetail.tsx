@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Tag, Button, Table, Loading, MessagePlugin, Select } from 'tdesign-react'
 import type { TableSort } from 'tdesign-react'
 import { ArrowLeft, MapPin, Trophy } from '@phosphor-icons/react'
-import { adminApi, type UserDetail as UserDetailData, type BestRow } from '../api'
+import { adminApi, type UserDetail as UserDetailData, type BestRow, type LoginLogItem } from '../api'
 import { typeLabel, TYPE_LABELS, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
 
@@ -44,6 +44,12 @@ export default function UserDetail() {
   const [actStatusFilter, setActStatusFilter] = useState<string>('finished')
   const [actSort, setActSort] = useState<TableSort>()
 
+  // 登录历史
+  const [logs, setLogs] = useState<LoginLogItem[]>([])
+  const [logTotal, setLogTotal] = useState(0)
+  const [logPage, setLogPage] = useState(1)
+  const [logLoading, setLogLoading] = useState(false)
+
   useEffect(() => {
     adminApi
       .userDetail(id)
@@ -74,6 +80,22 @@ export default function UserDetail() {
 
   useEffect(() => {
     loadActs(1)
+  }, [id])
+
+  const loadLogs = (p: number) => {
+    setLogLoading(true)
+    adminApi
+      .userLoginLogs(id, p, 20)
+      .then((d) => {
+        setLogs(d.items)
+        setLogTotal(d.total)
+      })
+      .catch(() => setLogs([]))
+      .finally(() => setLogLoading(false))
+  }
+
+  useEffect(() => {
+    loadLogs(1)
   }, [id])
 
   const bestRows = (() => {
@@ -325,6 +347,37 @@ export default function UserDetail() {
             onChange: (info) => {
               setActPage(info.current)
               loadActs(info.current)
+            },
+          }}
+        />
+      </Card>
+
+      {/* 登录历史 */}
+      <Card className="page-card" title={`登录记录（${logTotal}）`} style={{ marginTop: 16 }}>
+        <Table
+          data={logs}
+          rowKey="id"
+          loading={logLoading}
+          columns={[
+            { colKey: 'ip', title: 'IP', width: 140 },
+            { colKey: 'province', title: '省', width: 80, cell: ({ row }) => row.province || '—' },
+            { colKey: 'city', title: '市', width: 80, cell: ({ row }) => row.city || '—' },
+            { colKey: 'platform', title: '平台', width: 90, cell: ({ row }) => row.platform || '—' },
+            { colKey: 'system', title: '系统', ellipsis: true, cell: ({ row }) => row.system || '—' },
+            { colKey: 'brand', title: '品牌', width: 80, cell: ({ row }) => row.brand || '—' },
+            { colKey: 'model', title: '机型', ellipsis: true, cell: ({ row }) => row.model || '—' },
+            { colKey: 'sdkVersion', title: 'SDK', width: 90, cell: ({ row }) => row.sdkVersion || '—' },
+            { colKey: 'appVersion', title: '版本', width: 80, cell: ({ row }) => row.appVersion || '—' },
+            { colKey: 'createdAt', title: '登录时间', width: 170, cell: ({ row }) => fmtDateTime(new Date(row.createdAt).getTime()) },
+          ]}
+          pagination={{
+            total: logTotal,
+            current: logPage,
+            pageSize: 20,
+            showJumper: true,
+            onChange: (info) => {
+              setLogPage(info.current)
+              loadLogs(info.current)
             },
           }}
         />

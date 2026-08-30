@@ -181,5 +181,21 @@ export const adminApi = {
     )
   },
   userDetail: (id: string) => request<UserDetail>(`/admin/users/${id}`),
+  userLoginLogs: (id: string, page = 1, pageSize = 20) =>
+    request<{ total: number; page: number; items: LoginLogItem[] }>(`/admin/users/${id}/login-logs?page=${page}&pageSize=${pageSize}`),
   activityDetail: (id: string) => request<ActivityDetail>(`/admin/activities/${id}`),
+}
+
+export interface LoginLogItem {
+  id: string
+  ip: string
+  province: string
+  city: string
+  platform: string
+  system: string
+  brand: string
+  model: string
+  sdkVersion: string
+  appVersion: string
+  createdAt: string
 }
