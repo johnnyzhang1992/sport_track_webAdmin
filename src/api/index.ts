@@ -115,6 +115,7 @@ export interface ActivityTrackPoint {
   altitude: number | null
   speed: number | null
   accuracy: number | null
+  pauseGap?: boolean
   timestamp: number
 }
 

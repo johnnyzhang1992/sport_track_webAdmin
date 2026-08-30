@@ -6,6 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 export interface TrackLatLng {
   lat: number
   lng: number
+  pauseGap?: boolean
 }
 
 export interface TrackMarker extends TrackLatLng {
@@ -96,16 +97,29 @@ export default function TrackMap({ points, markers = [], height = 360, onExtent 
       ctx.clearRect(0, 0, w, h)
 
       const projected = coords.map((c) => map.project(c as [number, number]))
-      ctx.beginPath()
       ctx.strokeStyle = '#0052d9'
       ctx.lineWidth = 4
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
-      projected.forEach((p, i) => {
-        if (i === 0) ctx.moveTo(p.x, p.y)
-        else ctx.lineTo(p.x, p.y)
-      })
-      ctx.stroke()
+      // 按 pauseGap 切段（暂停间隙断开连线）
+      const segs: { x: number; y: number }[][] = []
+      let segStart = 0
+      for (let i = 0; i < points.length; i++) {
+        if (points[i].pauseGap && i > segStart) {
+          segs.push(projected.slice(segStart, i))
+          segStart = i
+        }
+      }
+      if (segStart < points.length) segs.push(projected.slice(segStart))
+      for (const seg of segs) {
+        if (seg.length < 2) continue
+        ctx.beginPath()
+        seg.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(p.x, p.y)
+          else ctx.lineTo(p.x, p.y)
+        })
+        ctx.stroke()
+      }
     }
 
     // 初始绘制 + 每次地图移动/缩放后重绘
