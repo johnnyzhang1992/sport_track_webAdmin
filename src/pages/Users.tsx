@@ -23,13 +23,15 @@ export default function Users() {
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [sort, setSort] = useState<TableSort>({ sortBy: 'lastLoginAt', descending: true })
+  const [pageSize, setPageSize] = useState(20)
 
-  const load = (p: number, kw = keyword, s = sort) => {
+  const load = (p: number, kw = keyword, s = sort, ps?: number) => {
     setLoading(true)
+    const size = ps ?? pageSize
     const sortBy = (s as { sortBy?: string })?.sortBy || ''
     const order = (s as { descending?: boolean })?.descending ? 'desc' : 'asc'
     adminApi
-      .users(p, 20, kw, sortBy, order)
+      .users(p, size, kw, sortBy, order)
       .then((d) => {
         setData(d.items as User[])
         setTotal(d.total)
@@ -106,11 +108,16 @@ export default function Users() {
         pagination={{
           total,
           current: page,
-          pageSize: 20,
+          pageSize,
           showJumper: true,
           onChange: (info) => {
             setPage(info.current)
             load(info.current)
+          },
+          onPageSizeChange: (size) => {
+            setPageSize(size)
+            setPage(1)
+            load(1, keyword, sort, size)
           },
         }}
       />

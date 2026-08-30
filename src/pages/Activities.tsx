@@ -55,6 +55,7 @@ export default function Activities() {
   const [maxDur, setMaxDur] = useState<number | undefined>()
   const [keyword, setKeyword] = useState('')
   const [sort, setSort] = useState<TableSort>()
+  const [pageSize, setPageSize] = useState(20)
 
   const buildFilters = () => ({
     type,
@@ -68,10 +69,11 @@ export default function Activities() {
     order: (sort as { descending?: boolean })?.descending ? 'desc' : (sort as { sortBy?: string })?.sortBy ? 'asc' : '',
   })
 
-  const load = (p: number) => {
+  const load = (p: number, ps?: number) => {
     setLoading(true)
+    const size = ps ?? pageSize
     adminApi
-      .activities(p, 20, buildFilters())
+      .activities(p, size, buildFilters())
       .then((d) => {
         setData(d.items as Activity[])
         setTotal(d.total)
@@ -196,11 +198,16 @@ export default function Activities() {
         pagination={{
           total,
           current: page,
-          pageSize: 20,
+          pageSize,
           showJumper: true,
           onChange: (info) => {
             setPage(info.current)
             load(info.current)
+          },
+          onPageSizeChange: (size) => {
+            setPageSize(size)
+            setPage(1)
+            load(1, size)
           },
         }}
       />
