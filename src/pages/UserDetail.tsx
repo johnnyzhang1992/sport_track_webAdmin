@@ -43,6 +43,7 @@ export default function UserDetail() {
   const [actTypeFilter, setActTypeFilter] = useState<string>('')
   const [actStatusFilter, setActStatusFilter] = useState<string>('finished')
   const [actSort, setActSort] = useState<TableSort>()
+  const [actPageSize, setActPageSize] = useState(10)
 
   // 登录历史
   const [logs, setLogs] = useState<LoginLogItem[]>([])
@@ -57,7 +58,7 @@ export default function UserDetail() {
       .catch((e) => MessagePlugin.error((e as Error).message || '加载用户详情失败'))
   }, [id])
 
-  const loadActs = (p: number, typeFilter?: string, statusFilter?: string, sortVal?: TableSort) => {
+  const loadActs = (p: number, typeFilter?: string, statusFilter?: string, sortVal?: TableSort, pageSize?: number) => {
     setActLoading(true)
     const filters: Record<string, string> = { userId: id }
     if (typeFilter ?? actTypeFilter) filters.type = typeFilter ?? actTypeFilter
@@ -68,8 +69,9 @@ export default function UserDetail() {
     const order = (s as { descending?: boolean })?.descending ? 'desc' : sortBy ? 'asc' : ''
     if (sortBy) filters.sortBy = sortBy
     if (order) filters.order = order
+    const ps = pageSize ?? actPageSize
     adminApi
-      .activities(p, 10, filters)
+      .activities(p, ps, filters)
       .then((d) => {
         setActs(d.items as ActivityRow[])
         setActTotal(d.total)
@@ -342,11 +344,16 @@ export default function UserDetail() {
           pagination={{
             total: actTotal,
             current: actPage,
-            pageSize: 10,
+            pageSize: actPageSize,
             showJumper: true,
             onChange: (info) => {
               setActPage(info.current)
               loadActs(info.current)
+            },
+            onPageSizeChange: (size) => {
+              setActPageSize(size)
+              setActPage(1)
+              loadActs(1, undefined, undefined, undefined, size)
             },
           }}
         />
