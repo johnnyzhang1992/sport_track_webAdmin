@@ -50,6 +50,7 @@ export default function UserDetail() {
   const [logTotal, setLogTotal] = useState(0)
   const [logPage, setLogPage] = useState(1)
   const [logLoading, setLogLoading] = useState(false)
+  const [logPageSize, setLogPageSize] = useState(20)
 
   useEffect(() => {
     adminApi
@@ -84,10 +85,11 @@ export default function UserDetail() {
     loadActs(1)
   }, [id])
 
-  const loadLogs = (p: number) => {
+  const loadLogs = (p: number, pageSize?: number) => {
     setLogLoading(true)
+    const ps = pageSize ?? logPageSize
     adminApi
-      .userLoginLogs(id, p, 20)
+      .userLoginLogs(id, p, ps)
       .then((d) => {
         setLogs(d.items)
         setLogTotal(d.total)
@@ -380,11 +382,16 @@ export default function UserDetail() {
           pagination={{
             total: logTotal,
             current: logPage,
-            pageSize: 20,
+            pageSize: logPageSize,
             showJumper: true,
             onChange: (info) => {
               setLogPage(info.current)
               loadLogs(info.current)
+            },
+            onPageSizeChange: (size) => {
+              setLogPageSize(size)
+              setLogPage(1)
+              loadLogs(1, size)
             },
           }}
         />
