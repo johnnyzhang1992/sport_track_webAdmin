@@ -182,8 +182,14 @@ export const adminApi = {
     )
   },
   userDetail: (id: string) => request<UserDetail>(`/admin/users/${id}`),
-  userLoginLogs: (id: string, page = 1, pageSize = 20) =>
-    request<{ total: number; page: number; items: LoginLogItem[] }>(`/admin/users/${id}/login-logs?page=${page}&pageSize=${pageSize}`),
+  userLoginLogs: (id: string, page = 1, pageSize = 20, startDate?: string, endDate?: string) => {
+    let url = `/admin/users/${id}/login-logs?page=${page}&pageSize=${pageSize}`
+    if (startDate) url += `&startDate=${encodeURIComponent(startDate)}`
+    if (endDate) url += `&endDate=${encodeURIComponent(endDate)}`
+    return request<{ total: number; page: number; items: LoginLogItem[] }>(url)
+  },
+  userLoginStats: (id: string) =>
+    request<{ last7Days: number; last30Days: number; last180Days: number; total: number }>(`/admin/users/${id}/login-stats`),
   activityDetail: (id: string) => request<ActivityDetail>(`/admin/activities/${id}`),
 }
 

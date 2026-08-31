@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Tag, Button, Table, Loading, MessagePlugin, Select } from 'tdesign-react'
+import { Card, Tag, Button, Table, Loading, MessagePlugin, Tabs, Space, DateRangePicker } from 'tdesign-react'
 import type { TableSort } from 'tdesign-react'
 import { ArrowLeft, MapPin, Trophy } from '@phosphor-icons/react'
 import { adminApi, type UserDetail as UserDetailData, type BestRow, type LoginLogItem } from '../api'
-import { typeLabel, TYPE_LABELS, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime } from '../utils/format'
+import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
 
 const RANGES = [
@@ -34,14 +34,15 @@ export default function UserDetail() {
   const [detail, setDetail] = useState<UserDetailData | null>(null)
   const [range, setRange] = useState<(typeof RANGES)[number]['key']>('total')
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('activities') // 'activities' | 'login'
 
   // 用户轨迹列表（复用轨迹列表接口，按 userId 过滤）
   const [acts, setActs] = useState<ActivityRow[]>([])
   const [actTotal, setActTotal] = useState(0)
   const [actPage, setActPage] = useState(1)
   const [actLoading, setActLoading] = useState(false)
-  const [actTypeFilter, setActTypeFilter] = useState<string>('')
-  const [actStatusFilter, setActStatusFilter] = useState<string>('finished')
+  const [actTypeFilter] = useState<string>('')
+  const [actStatusFilter] = useState<string>('finished')
   const [actSort, setActSort] = useState<TableSort>()
   const [actPageSize, setActPageSize] = useState(10)
 
@@ -51,6 +52,11 @@ export default function UserDetail() {
   const [logPage, setLogPage] = useState(1)
   const [logLoading, setLogLoading] = useState(false)
   const [logPageSize, setLogPageSize] = useState(20)
+  const [logDateRange, setLogDateRange] = useState<[string, string] | null>(null)
+  const [logQuickRange, setLogQuickRange] = useState<'7d' | '30d' | '180d' | null>(null)
+
+  // 登录统计
+  const [loginStats, setLoginStats] = useState<{ last7Days: number; last30Days: number; last180Days: number; total: number } | null>(null)
 
   useEffect(() => {
     adminApi
@@ -85,11 +91,11 @@ export default function UserDetail() {
     loadActs(1)
   }, [id])
 
-  const loadLogs = (p: number, pageSize?: number) => {
+  const loadLogs = (p: number, pageSize?: number, startDate?: string, endDate?: string) => {
     setLogLoading(true)
     const ps = pageSize ?? logPageSize
     adminApi
-      .userLoginLogs(id, p, ps)
+      .userLoginLogs(id, p, ps, startDate, endDate)
       .then((d) => {
         setLogs(d.items)
         setLogTotal(d.total)
@@ -101,6 +107,13 @@ export default function UserDetail() {
   useEffect(() => {
     loadLogs(1)
   }, [id])
+
+  // 加载登录统计
+  useEffect(() => {
+    if (activeTab === 'login') {
+      adminApi.userLoginStats(id).then(setLoginStats).catch(() => {})
+    }
+  }, [id, activeTab])
 
   const bestRows = (() => {
     if (!detail) return []
@@ -269,133 +282,216 @@ export default function UserDetail() {
         </Card>
       </div>
 
-      {/* 该用户轨迹列表 */}
-      <Card
-        className="page-card"
-        title={<span>轨迹记录（{actTotal}）</span>}
-        style={{ marginTop: 16 }}
-        actions={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Select
-              size="small"
-              placeholder="全部类型"
-              clearable
-              value={actTypeFilter}
-              onChange={(v) => {
-                const val = Array.isArray(v) ? v[0] : v
-                setActTypeFilter(val as string)
+      {/* Tab 切换：轨迹详情 / 登录记录 */}
+      <Tabs value={activeTab} onChange={(v) => setActiveTab(v as string)} style={{ marginTop: 16 }}>
+        <Tabs.TabPanel value="activities" label={`轨迹记录（${actTotal}）`}>
+          <Card className="page-card">
+            <Table
+              data={acts}
+              rowKey="id"
+              loading={actLoading}
+              sort={actSort}
+              onSortChange={(s) => {
+                setActSort(s)
                 setActPage(1)
-                loadActs(1, val as string, undefined)
+                loadActs(1, undefined, undefined, s)
               }}
-              options={Object.entries(TYPE_LABELS).map(([value, label]) => ({ label, value }))}
-              style={{ width: 120 }}
-            />
-            <Select
-              size="small"
-              placeholder="全部状态"
-              clearable
-              value={actStatusFilter}
-              onChange={(v) => {
-                const val = Array.isArray(v) ? v[0] : v
-                setActStatusFilter(val as string)
-                setActPage(1)
-                loadActs(1, undefined, val as string)
+              columns={[
+                { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{typeLabel(row.type)}</Tag> },
+                {
+                  colKey: 'status',
+                  title: '状态',
+                  cell: ({ row }) => (
+                    <Tag theme={row.status === 'finished' ? 'success' : row.status === 'cancelled' ? 'danger' : 'warning'}>
+                      {STATUS_LABELS[row.status] || row.status}
+                    </Tag>
+                  ),
+                },
+                { colKey: 'distance', title: '距离 km', sorter: true, cell: ({ row }) => fmtKm(row.distance || 0) },
+                { colKey: 'duration', title: '时长', sorter: true, cell: ({ row }) => fmtDuration(row.duration || 0) },
+                { colKey: 'calories', title: '千卡' },
+                { colKey: 'startTime', title: '开始时间', cell: ({ row }) => fmtDateTime(row.startTime) },
+                {
+                  colKey: 'op',
+                  title: '操作',
+                  width: 80,
+                  cell: ({ row }) => (
+                    <Button size="small" theme="primary" variant="text" onClick={() => setDetailId(row.id)}>
+                      详情
+                    </Button>
+                  ),
+                },
+              ]}
+              pagination={{
+                total: actTotal,
+                current: actPage,
+                pageSize: actPageSize,
+                showJumper: true,
+                onChange: (info) => {
+                  setActPage(info.current)
+                  loadActs(info.current)
+                },
+                onPageSizeChange: (size) => {
+                  setActPageSize(size)
+                  setActPage(1)
+                  loadActs(1, undefined, undefined, undefined, size)
+                },
               }}
-              options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ label, value }))}
-              style={{ width: 120 }}
             />
-          </div>
-        }
-      >
-        <Table
-          data={acts}
-          rowKey="id"
-          loading={actLoading}
-          sort={actSort}
-          onSortChange={(s) => {
-            setActSort(s)
-            setActPage(1)
-            loadActs(1, undefined, undefined, s)
-          }}
-          columns={[
-            { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{typeLabel(row.type)}</Tag> },
-            {
-              colKey: 'status',
-              title: '状态',
-              cell: ({ row }) => (
-                <Tag theme={row.status === 'finished' ? 'success' : row.status === 'cancelled' ? 'danger' : 'warning'}>
-                  {STATUS_LABELS[row.status] || row.status}
-                </Tag>
-              ),
-            },
-            { colKey: 'distance', title: '距离 km', sorter: true, cell: ({ row }) => fmtKm(row.distance || 0) },
-            { colKey: 'duration', title: '时长', sorter: true, cell: ({ row }) => fmtDuration(row.duration || 0) },
-            { colKey: 'calories', title: '千卡' },
-            { colKey: 'startTime', title: '开始时间', cell: ({ row }) => fmtDateTime(row.startTime) },
-            {
-              colKey: 'op',
-              title: '操作',
-              width: 80,
-              cell: ({ row }) => (
-                <Button size="small" theme="primary" variant="text" onClick={() => setDetailId(row.id)}>
-                  详情
-                </Button>
-              ),
-            },
-          ]}
-          pagination={{
-            total: actTotal,
-            current: actPage,
-            pageSize: actPageSize,
-            showJumper: true,
-            onChange: (info) => {
-              setActPage(info.current)
-              loadActs(info.current)
-            },
-            onPageSizeChange: (size) => {
-              setActPageSize(size)
-              setActPage(1)
-              loadActs(1, undefined, undefined, undefined, size)
-            },
-          }}
-        />
-      </Card>
+          </Card>
+        </Tabs.TabPanel>
 
-      {/* 登录历史 */}
-      <Card className="page-card" title={`登录记录（${logTotal}）`} style={{ marginTop: 16 }}>
-        <Table
-          data={logs}
-          rowKey="id"
-          loading={logLoading}
-          columns={[
-            { colKey: 'ip', title: 'IP', width: 140 },
-            { colKey: 'province', title: '省', width: 80, cell: ({ row }) => row.province || '—' },
-            { colKey: 'city', title: '市', width: 80, cell: ({ row }) => row.city || '—' },
-            { colKey: 'platform', title: '平台', width: 90, cell: ({ row }) => row.platform || '—' },
-            { colKey: 'system', title: '系统', ellipsis: true, cell: ({ row }) => row.system || '—' },
-            { colKey: 'brand', title: '品牌', width: 80, cell: ({ row }) => row.brand || '—' },
-            { colKey: 'model', title: '机型', ellipsis: true, cell: ({ row }) => row.model || '—' },
-            { colKey: 'sdkVersion', title: 'SDK', width: 90, cell: ({ row }) => row.sdkVersion || '—' },
-            { colKey: 'appVersion', title: '版本', width: 80, cell: ({ row }) => row.appVersion || '—' },
-            { colKey: 'createdAt', title: '登录时间', width: 170, cell: ({ row }) => fmtDateTime(new Date(row.createdAt).getTime()) },
-          ]}
-          pagination={{
-            total: logTotal,
-            current: logPage,
-            pageSize: logPageSize,
-            showJumper: true,
-            onChange: (info) => {
-              setLogPage(info.current)
-              loadLogs(info.current)
-            },
-            onPageSizeChange: (size) => {
-              setLogPageSize(size)
-              setLogPage(1)
-              loadLogs(1, size)
-            },
-          }}
-        />
-      </Card>
+        <Tabs.TabPanel value="login" label="登录记录">
+          {/* 数据概况 */}
+          {loginStats && (
+            <Card className="page-card" title="数据概况" style={{ marginBottom: 16 }}>
+              <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                {[
+                  { label: '最近7天', value: String(loginStats.last7Days) },
+                  { label: '最近30天', value: String(loginStats.last30Days) },
+                  { label: '最近半年', value: String(loginStats.last180Days) },
+                  { label: '累计', value: String(loginStats.total) },
+                ].map((it) => (
+                  <div key={it.label} style={{ background: '#f8f9fb', borderRadius: 8, padding: '14px 16px' }}>
+                    <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{it.value}</div>
+                    <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 2 }}>{it.label}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* 登录记录表格 */}
+          <Card className="page-card">
+            <Space style={{ marginBottom: 12 }}>
+              <DateRangePicker
+                placeholder={['开始日期', '结束日期']}
+                value={logDateRange ? [new Date(logDateRange[0]), new Date(logDateRange[1])] : undefined}
+                onChange={(v) => {
+                  if (!v || !Array.isArray(v) || v.length !== 2 || !v[0] || !v[1]) {
+                    setLogDateRange(null)
+                    setLogQuickRange(null)
+                    setLogPage(1)
+                    loadLogs(1)
+                    return
+                  }
+                  const toDateStr = (d: unknown) => {
+                    if (d instanceof Date) return d.toISOString().split('T')[0]
+                    if (typeof d === 'string') return d
+                    return ''
+                  }
+                  const start = toDateStr(v[0])
+                  const end = toDateStr(v[1])
+                  if (!start || !end) return
+                  setLogDateRange([start, end])
+                  setLogQuickRange(null)
+                  setLogPage(1)
+                  loadLogs(1, undefined, start, end)
+                }}
+                clearable
+              />
+              <Button
+                size="small"
+                variant={logQuickRange === '7d' ? 'base' : 'text'}
+                onClick={() => {
+                  const end = new Date()
+                  const start = new Date()
+                  start.setDate(start.getDate() - 7)
+                  const s = start.toISOString().split('T')[0]
+                  const e = end.toISOString().split('T')[0]
+                  setLogQuickRange('7d')
+                  setLogDateRange([s, e])
+                  setLogPage(1)
+                  loadLogs(1, undefined, s, e)
+                }}
+              >
+                最近7天
+              </Button>
+              <Button
+                size="small"
+                variant={logQuickRange === '30d' ? 'base' : 'text'}
+                onClick={() => {
+                  const end = new Date()
+                  const start = new Date()
+                  start.setDate(start.getDate() - 30)
+                  const s = start.toISOString().split('T')[0]
+                  const e = end.toISOString().split('T')[0]
+                  setLogQuickRange('30d')
+                  setLogDateRange([s, e])
+                  setLogPage(1)
+                  loadLogs(1, undefined, s, e)
+                }}
+              >
+                最近30天
+              </Button>
+              <Button
+                size="small"
+                variant={logQuickRange === '180d' ? 'base' : 'text'}
+                onClick={() => {
+                  const end = new Date()
+                  const start = new Date()
+                  start.setDate(start.getDate() - 180)
+                  const s = start.toISOString().split('T')[0]
+                  const e = end.toISOString().split('T')[0]
+                  setLogQuickRange('180d')
+                  setLogDateRange([s, e])
+                  setLogPage(1)
+                  loadLogs(1, undefined, s, e)
+                }}
+              >
+                最近半年
+              </Button>
+              {(logDateRange || logQuickRange) && (
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => {
+                    setLogDateRange(null)
+                    setLogQuickRange(null)
+                    setLogPage(1)
+                    loadLogs(1)
+                  }}
+                >
+                  清除筛选
+                </Button>
+              )}
+            </Space>
+
+            <Table
+              data={logs}
+              rowKey="id"
+              loading={logLoading}
+              columns={[
+                { colKey: 'ip', title: 'IP', width: 140 },
+                { colKey: 'province', title: '省', width: 80, cell: ({ row }) => row.province || '—' },
+                { colKey: 'city', title: '市', width: 80, cell: ({ row }) => row.city || '—' },
+                { colKey: 'platform', title: '平台', width: 90, cell: ({ row }) => row.platform || '—' },
+                { colKey: 'system', title: '系统', ellipsis: true, cell: ({ row }) => row.system || '—' },
+                { colKey: 'brand', title: '品牌', width: 80, cell: ({ row }) => row.brand || '—' },
+                { colKey: 'model', title: '机型', ellipsis: true, cell: ({ row }) => row.model || '—' },
+                { colKey: 'sdkVersion', title: 'SDK', width: 90, cell: ({ row }) => row.sdkVersion || '—' },
+                { colKey: 'appVersion', title: '版本', width: 80, cell: ({ row }) => row.appVersion || '—' },
+                { colKey: 'createdAt', title: '登录时间', width: 170, cell: ({ row }) => fmtDateTime(new Date(row.createdAt).getTime()) },
+              ]}
+              pagination={{
+                total: logTotal,
+                current: logPage,
+                pageSize: logPageSize,
+                showJumper: true,
+                onChange: (info) => {
+                  setLogPage(info.current)
+                  loadLogs(info.current, undefined, logDateRange?.[0], logDateRange?.[1])
+                },
+                onPageSizeChange: (size) => {
+                  setLogPageSize(size)
+                  setLogPage(1)
+                  loadLogs(1, size, logDateRange?.[0], logDateRange?.[1])
+                },
+              }}
+            />
+          </Card>
+        </Tabs.TabPanel>
+      </Tabs>
 
       <ActivityDetailDialog id={detailId} onClose={() => setDetailId(null)} />
     </div>
