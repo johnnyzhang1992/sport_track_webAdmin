@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import * as echarts from 'echarts'
-import { Button, Space, Dialog } from 'tdesign-react'
+import { Button, Space, Dialog, MessagePlugin } from 'tdesign-react'
 import { Plus, Minus } from '@phosphor-icons/react'
+import { adminApi } from '../api'
 
 interface City {
   name: string
@@ -95,7 +96,7 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
     loadProvinceMap()
   }, [provinceModal.visible, provinceModal.name, cities])
 
-  const loadProvinceMap = () => {
+  const loadProvinceMap = async () => {
     const code = PROVINCE_TO_CODE[provinceModal.name]
     if (!code) {
       console.warn(`未找到省份 ${provinceModal.name} 的行政区划代码`)
@@ -112,105 +113,120 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
     const litCityNames = new Set(provCities.map((c) => c.name))
     const mapKey = `province-${provinceModal.name}`
     
-    // 从 GeoJSON 中提取该省所有城市名称
-    fetch(`https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((geoJson) => {
-        console.log(`已加载 ${provinceModal.name} 地图 GeoJSON`, geoJson.features?.length, '个要素')
-        echarts.registerMap(mapKey, geoJson)
-
-        // 构建完整城市数据：已点亮的有 value，未点亮的 value 为 undefined
-        const allCities: Array<{ name: string; value?: number }> = []
-        const features = geoJson.features || []
-        features.forEach((f: any) => {
-          const cityName = f.properties?.name
-          if (cityName && !allCities.find(c => c.name === cityName)) {
-            if (litCityNames.has(cityName)) {
-              const city = provCities.find(c => c.name === cityName)
-              allCities.push({ name: cityName, value: city?.count || 0 })
-            } else {
-              allCities.push({ name: cityName })
-            }
-          }
-        })
-        // 补充 provCities 中有但 GeoJSON 中没有的城市
-        provCities.forEach(c => {
-          if (!allCities.find(ac => ac.name === c.name)) {
-            allCities.push({ name: c.name, value: c.count })
-          }
-        })
-
-        const maxVal = Math.max(...provCities.map((d: any) => d.count), 1)
-
-        if (!provinceChart.current) {
-          provinceChart.current = echarts.init(provinceChartRef.current!)
+    // 省份 GeoJSON 从阿里云 DataV 获取（带容错处理）
+    const provinceUrls = [
+      `https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`,
+    ]
+    
+    let geoJson: any = null
+    for (const url of provinceUrls) {
+      try {
+        const r = await fetch(url)
+        if (r.ok) {
+          geoJson = await r.json()
+          break
         }
+      } catch {}
+    }
+    
+    if (!geoJson) {
+      MessagePlugin.error(`无法加载 ${provinceModal.name} 地图数据，请稍后重试`)
+      console.error(`所有省份数据源均失败`)
+      return
+    }
+    
+    console.log(`已加载 ${provinceModal.name} 地图 GeoJSON`, geoJson.features?.length, '个要素')
+    echarts.registerMap(mapKey, geoJson)
 
-        const option: echarts.EChartsOption = {
-          title: {
-            text: `${provinceModal.name} - 城市点亮`,
-            left: 'center',
-            textStyle: { fontSize: 16 },
-          },
-          tooltip: {
-            trigger: 'item',
-            formatter: (params: any) => {
-              const val = params.value ?? 0
-              return `${params.name}<br/>${val > 0 ? `轨迹数：${val}` : '未点亮'}`
-            },
-          },
-          visualMap: {
-            min: 0,
-            max: maxVal,
-            left: 'left',
-            bottom: '20',
-            text: ['高', '低'],
-            calculable: true,
-            inRange: {
-              color: ['#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#313695'],
-            },
-          },
-          series: [
-            {
-              type: 'map',
-              map: mapKey,
-              roam: true,
-              scaleLimit: { min: 0.5, max: 3 },
-              label: {
-                show: true,
-                fontSize: 8,
-                color: '#333',
-              },
-              emphasis: {
-                label: { show: true, fontSize: 10, color: '#fff' },
-                itemStyle: { areaColor: '#ffd700' },
-              },
-              itemStyle: {
-                areaColor: '#f0f0f0',
-                borderColor: '#ccc',
-              },
-              data: (allCities as any[]).map((c: any) => {
-                const isLit = typeof c.value === 'number' && c.value > 0
-                return {
-                  ...c,
-                  itemStyle: isLit ? undefined : { areaColor: '#e8e8e8' },
-                  label: { color: isLit ? '#fff' : '#666' },
-                }
-              }),
-            },
-          ],
+    try {
+      // 构建完整城市数据：已点亮的有 value，未点亮的 value 为 undefined
+      const allCities: Array<{ name: string; value?: number }> = []
+      const features = geoJson.features || []
+      features.forEach((f: any) => {
+        const cityName = f.properties?.name
+        if (cityName && !allCities.find(c => c.name === cityName)) {
+          if (litCityNames.has(cityName)) {
+            const city = provCities.find(c => c.name === cityName)
+            allCities.push({ name: cityName, value: city?.count || 0 })
+          } else {
+            allCities.push({ name: cityName })
+          }
         }
+      })
+      // 补充 provCities 中有但 GeoJSON 中没有的城市
+      provCities.forEach(c => {
+        if (!allCities.find(ac => ac.name === c.name)) {
+          allCities.push({ name: c.name, value: c.count })
+        }
+      })
 
-        provinceChart.current.setOption(option, true)
-        // 强制 resize 确保正确渲染
-        setTimeout(() => provinceChart.current?.resize(), 50)
-      })
-      .catch((e) => {
-        console.error(`加载${provinceModal.name}地图失败:`, e)
-      })
+      const maxVal = Math.max(...provCities.map((d: any) => d.count), 1)
+
+      if (!provinceChart.current) {
+        provinceChart.current = echarts.init(provinceChartRef.current!)
+      }
+
+      const option: echarts.EChartsOption = {
+        title: {
+          text: `${provinceModal.name} - 城市点亮`,
+          left: 'center',
+          textStyle: { fontSize: 16 },
+        },
+        tooltip: {
+          trigger: 'item',
+          formatter: (params: any) => {
+            const val = params.value ?? 0
+            return `${params.name}<br/>${val > 0 ? `轨迹数：${val}` : '未点亮'}`
+          },
+        },
+        visualMap: {
+          min: 0,
+          max: maxVal,
+          left: 'left',
+          bottom: '20',
+          text: ['高', '低'],
+          calculable: true,
+          inRange: {
+            color: ['#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#313695'],
+          },
+        },
+        series: [
+          {
+            type: 'map',
+            map: mapKey,
+            roam: true,
+            scaleLimit: { min: 0.5, max: 3 },
+            label: {
+              show: true,
+              fontSize: 8,
+              color: '#333',
+            },
+            emphasis: {
+              label: { show: true, fontSize: 10, color: '#fff' },
+              itemStyle: { areaColor: '#ffd700' },
+            },
+            itemStyle: {
+              areaColor: '#f0f0f0',
+              borderColor: '#ccc',
+            },
+            data: (allCities as any[]).map((c: any) => {
+              const isLit = typeof c.value === 'number' && c.value > 0
+              return {
+                ...c,
+                itemStyle: isLit ? undefined : { areaColor: '#e8e8e8' },
+                label: { color: isLit ? '#fff' : '#666' },
+              }
+            }),
+          },
+        ],
+      }
+
+      provinceChart.current.setOption(option, true)
+      // 强制 resize 确保正确渲染
+      setTimeout(() => provinceChart.current?.resize(), 50)
+    } catch (e) {
+      console.error(`加载${provinceModal.name}地图失败:`, e)
+    }
   }
 
   useEffect(() => {
@@ -229,9 +245,8 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
       chart.current = echarts.init(chartRef.current)
     }
 
-    // 加载中国地图 GeoJSON（从阿里云 DataV CDN）
-    fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
-      .then((r) => r.json())
+    // 从后端 API 获取中国地图 GeoJSON（与小程序同源）
+    adminApi.getChinaMap()
       .then((geoJson) => {
         echarts.registerMap('china', geoJson)
 
@@ -283,7 +298,7 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
         })
       })
       .catch((e) => {
-        console.error('加载中国地图失败:', e)
+        console.error('[FootprintMap] 加载中国地图失败:', e)
       })
 
     const ro = new ResizeObserver(() => chart.current?.resize())
