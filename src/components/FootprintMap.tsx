@@ -116,7 +116,8 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
     // 从后端 API 获取省份 GeoJSON
     let geoJson: any = null
     try {
-      const res = await adminApi.getProvinceMap(code)
+      const codeNum = Number(code)
+      const res = await adminApi.getProvinceMap(codeNum)
       geoJson = res.data || res
       console.log(`已加载 ${provinceModal.name} 地图 GeoJSON`, geoJson.features?.length, '个要素')
     } catch (e) {
