@@ -25,14 +25,6 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
   const chartRef = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
 
-  // 覆盖 TDesign Dialog --top 模式的默认 padding-top（20vh → 4vh），让弹窗更靠近顶部
-  useEffect(() => {
-    const style = document.createElement('style')
-    style.textContent = '.activity-detail-dialog .t-dialog__position.t-dialog--top { padding-top: 5vh !important; }'
-    document.head.appendChild(style)
-    return () => { document.head.removeChild(style) }
-  }, [])
-
   useEffect(() => {
     if (!id) return
     setLoading(true)
@@ -137,7 +129,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
           <Loading />
         </div>
       ) : detail ? (
-        <div style={{ maxHeight: 'calc(85vh - 116px)', overflowY: 'auto' }}>
+        <div style={{ maxHeight: 'calc(90vh - 116px)', overflowY: 'auto' }}>
           <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Tag theme={detail.status === 'finished' ? 'success' : detail.status === 'cancelled' ? 'danger' : 'warning'}>
               {STATUS_LABELS[detail.status] || detail.status}

@@ -124,3 +124,8 @@ body {
   font-size: 13px;
   margin-bottom: 24px;
 }
+
+/* 全局覆盖 TDesign Dialog --top 模式的 padding-top */
+.t-dialog__position.t-dialog--top {
+  padding-top: 10vh !important;
+}

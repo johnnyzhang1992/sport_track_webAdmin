@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Trophy } from '@phosphor-icons/react'
 import { adminApi, type UserDetail as UserDetailData, type BestRow, type LoginLogItem } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
+import FootprintMap from '../components/FootprintMap'
 
 const RANGES = [
   { key: 'today', label: '今日' },
@@ -35,6 +36,7 @@ export default function UserDetail() {
   const [range, setRange] = useState<(typeof RANGES)[number]['key']>('total')
   const [detailId, setDetailId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('activities') // 'activities' | 'login'
+  const [selectedProvince, setSelectedProvince] = useState<string | null>(null) // 地图下钻选中的省份
 
   // 用户轨迹列表（复用轨迹列表接口，按 userId 过滤）
   const [acts, setActs] = useState<ActivityRow[]>([])
@@ -196,95 +198,113 @@ export default function UserDetail() {
         </div>
       </Card>
 
-      {/* 数据概况（今日/周/月/年/累计切换） */}
-      <Card
-        className="page-card"
-        title="数据概况"
-        style={{ marginTop: 16 }}
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            {RANGES.map((r) => (
-              <div
-                key={r.key}
-                onClick={() => setRange(r.key)}
-                style={{
-                  padding: '4px 14px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  background: range === r.key ? '#0052d9' : '#f2f3f5',
-                  color: range === r.key ? '#fff' : '#4e5969',
-                }}
-              >
-                {r.label}
-              </div>
-            ))}
-          </div>
-        }
-      >
-        <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-          {[
-            { label: '轨迹数', value: String(sec.count) },
-            { label: '距离 (km)', value: fmtKm(sec.distance) },
-            { label: '时长', value: fmtDuration(sec.duration) },
-            { label: '累计爬升 (m)', value: String(sec.elevationGain ?? 0) },
-            { label: '卡路里 (千卡)', value: String(sec.calories ?? 0) },
-          ].map((it) => (
-            <div key={it.label} style={{ background: '#f8f9fb', borderRadius: 8, padding: '14px 16px' }}>
-              <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{it.value}</div>
-              <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 2 }}>{it.label}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* 个人最佳 + 点亮城市 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, marginTop: 16 }}>
-        <Card className="page-card" title={<span><Trophy size={16} style={{ verticalAlign: '-3px', marginRight: 6, color: '#e37318' }} />个人最佳（按运动类型）</span>}>
-          <Table
-            data={bestRows}
-            rowKey="type"
-            columns={[
-              { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{typeLabel(row.type)}</Tag> },
-              { colKey: 'distance', title: '最远距离', cell: ({ row }) => `${fmtKm(row.distance)} km` },
-              { colKey: 'fastestKm', title: '最快配速 (1km)', cell: ({ row }) => fmtPace(row.fastestKm) },
-              { colKey: 'duration', title: '最长时长', cell: ({ row }) => fmtDuration(row.duration) },
-              { colKey: 'elevationGain', title: '最大爬升', cell: ({ row }) => `${row.elevationGain} m` },
-            ]}
-          />
-        </Card>
-
-        <Card
-          className="page-card"
-          title={<span><MapPin size={16} style={{ verticalAlign: '-3px', marginRight: 6, color: '#00a870' }} />点亮城市</span>}
-        >
-          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-            <div style={{ flex: 1, background: '#f8f9fb', borderRadius: 8, padding: '12px 16px' }}>
-              <div style={{ fontSize: 22, fontWeight: 700 }}>{footprint.provinceCount}</div>
-              <div style={{ fontSize: 13, color: '#8a93a6' }}>点亮省份</div>
-            </div>
-            <div style={{ flex: 1, background: '#f8f9fb', borderRadius: 8, padding: '12px 16px' }}>
-              <div style={{ fontSize: 22, fontWeight: 700 }}>{footprint.cityCount}</div>
-              <div style={{ fontSize: 13, color: '#8a93a6' }}>点亮城市</div>
-            </div>
-          </div>
-          {footprint.cities.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {footprint.cities.map((c) => (
-                <Tag key={`${c.province}-${c.name}`} theme="primary" variant="light">
-                  {c.name} · {c.count}
-                </Tag>
-              ))}
-            </div>
-          ) : (
-            <div style={{ fontSize: 13, color: '#8a93a6' }}>暂无足迹数据</div>
-          )}
-        </Card>
-      </div>
-
       {/* Tab 切换：轨迹详情 / 登录记录 */}
       <Tabs value={activeTab} onChange={(v) => setActiveTab(v as string)} style={{ marginTop: 16 }}>
         <Tabs.TabPanel value="activities" label={`轨迹记录（${actTotal}）`}>
+          {/* 数据概况（今日/周/月/年/累计切换） */}
+          <Card
+            className="page-card"
+            title="数据概况"
+            style={{ marginBottom: 16 }}
+            actions={
+              <div style={{ display: 'flex', gap: 8 }}>
+                {RANGES.map((r) => (
+                  <div
+                    key={r.key}
+                    onClick={() => setRange(r.key)}
+                    style={{
+                      padding: '4px 14px',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      background: range === r.key ? '#0052d9' : '#f2f3f5',
+                      color: range === r.key ? '#fff' : '#4e5969',
+                    }}
+                  >
+                    {r.label}
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+              {[
+                { label: '轨迹数', value: String(sec.count) },
+                { label: '距离 (km)', value: fmtKm(sec.distance) },
+                { label: '时长', value: fmtDuration(sec.duration) },
+                { label: '累计爬升 (m)', value: String(sec.elevationGain ?? 0) },
+                { label: '卡路里 (千卡)', value: String(sec.calories ?? 0) },
+              ].map((it) => (
+                <div key={it.label} style={{ background: '#f8f9fb', borderRadius: 8, padding: '14px 16px' }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{it.value}</div>
+                  <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 2 }}>{it.label}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* 个人最佳 + 点亮城市 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, marginBottom: 16 }}>
+            <Card className="page-card" title={<span><Trophy size={16} style={{ verticalAlign: '-3px', marginRight: 6, color: '#e37318' }} />个人最佳（按运动类型）</span>}>
+              <Table
+                data={bestRows}
+                rowKey="type"
+                columns={[
+                  { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{typeLabel(row.type)}</Tag> },
+                  { colKey: 'distance', title: '最远距离', cell: ({ row }) => `${fmtKm(row.distance)} km` },
+                  { colKey: 'fastestKm', title: '最快配速 (1km)', cell: ({ row }) => fmtPace(row.fastestKm) },
+                  { colKey: 'duration', title: '最长时长', cell: ({ row }) => fmtDuration(row.duration) },
+                  { colKey: 'elevationGain', title: '最大爬升', cell: ({ row }) => `${row.elevationGain} m` },
+                ]}
+              />
+            </Card>
+
+            <Card
+              className="page-card"
+              title={<span><MapPin size={16} style={{ verticalAlign: '-3px', marginRight: 6, color: '#00a870' }} />点亮城市{selectedProvince ? ` - ${selectedProvince}` : ''}</span>}
+              actions={
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {!selectedProvince && (
+                    <span style={{ fontSize: 13, color: '#8a93a6' }}>
+                      已点亮 <strong style={{ color: '#0052d9' }}>{footprint.provinceCount}</strong> 省 · <strong style={{ color: '#0052d9' }}>{footprint.cityCount}</strong> 城
+                    </span>
+                  )}
+                  {selectedProvince ? (
+                    <Button size="small" variant="text" onClick={() => setSelectedProvince(null)}>
+                      返回全国
+                    </Button>
+                  ) : null}
+                </div>
+              }
+            >
+              {footprint.cities.length > 0 ? (
+                <>
+                  <FootprintMap
+                    cities={footprint.cities}
+                    onProvinceClick={(prov) => setSelectedProvince(prov)}
+                  />
+                  {selectedProvince && (
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 13, color: '#8a93a6', marginBottom: 8 }}>{selectedProvince} 已点亮城市：</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {footprint.cities
+                          .filter((c) => c.province === selectedProvince)
+                          .map((c) => (
+                            <Tag key={`${c.province}-${c.name}`} theme="primary" variant="light">
+                              {c.name} · {c.count}
+                            </Tag>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: '#8a93a6' }}>暂无足迹数据</div>
+              )}
+            </Card>
+          </div>
+
+          {/* 轨迹列表 */}
           <Card className="page-card">
             <Table
               data={acts}
