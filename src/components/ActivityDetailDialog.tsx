@@ -129,7 +129,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
           <Loading />
         </div>
       ) : detail ? (
-        <div style={{ maxHeight: 'calc(85vh - 116px)', overflowY: 'auto' }}>
+        <div style={{ maxHeight: 'calc(80vh - 116px)', overflowY: 'auto' }}>
           <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Tag theme={detail.status === 'finished' ? 'success' : detail.status === 'cancelled' ? 'danger' : 'warning'}>
               {STATUS_LABELS[detail.status] || detail.status}
