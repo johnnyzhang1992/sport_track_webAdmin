@@ -113,29 +113,18 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
     const litCityNames = new Set(provCities.map((c) => c.name))
     const mapKey = `province-${provinceModal.name}`
     
-    // 省份 GeoJSON 从阿里云 DataV 获取（带容错处理）
-    const provinceUrls = [
-      `https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`,
-    ]
-    
+    // 从后端 API 获取省份 GeoJSON
     let geoJson: any = null
-    for (const url of provinceUrls) {
-      try {
-        const r = await fetch(url)
-        if (r.ok) {
-          geoJson = await r.json()
-          break
-        }
-      } catch {}
-    }
-    
-    if (!geoJson) {
+    try {
+      const res = await adminApi.getProvinceMap(code)
+      geoJson = res.data || res
+      console.log(`已加载 ${provinceModal.name} 地图 GeoJSON`, geoJson.features?.length, '个要素')
+    } catch (e) {
       MessagePlugin.error(`无法加载 ${provinceModal.name} 地图数据，请稍后重试`)
-      console.error(`所有省份数据源均失败`)
+      console.error(`加载省份地图失败:`, e)
       return
     }
     
-    console.log(`已加载 ${provinceModal.name} 地图 GeoJSON`, geoJson.features?.length, '个要素')
     echarts.registerMap(mapKey, geoJson)
 
     try {

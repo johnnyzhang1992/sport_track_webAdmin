@@ -192,6 +192,7 @@ export const adminApi = {
     request<{ last7Days: number; last30Days: number; last180Days: number; total: number }>(`/admin/users/${id}/login-stats`),
   activityDetail: (id: string) => request<ActivityDetail>(`/admin/activities/${id}`),
   getChinaMap: () => request<any>('/geo/china-map'),
+  getProvinceMap: (adcode: number) => request<any>(`/geo/province-map?adcode=${adcode}`),
 }
 
 export interface LoginLogItem {
