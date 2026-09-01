@@ -139,6 +139,7 @@ export interface ActivityDetail {
   status: string
   startTime: number
   endTime: number | null
+  updatedAt: string
   duration: number
   distance: number
   avgPace: number | null

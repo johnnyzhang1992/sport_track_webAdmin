@@ -97,7 +97,14 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
         { label: '用户', value: detail.userNickname },
         { label: '运动类型', value: typeLabel(detail.type) },
         { label: '开始时间', value: fmtDateTime(detail.startTime) },
-        { label: '结束时间', value: fmtDateTime(detail.endTime) },
+        {
+          label: '结束时间',
+          value: detail.endTime
+            ? fmtDateTime(detail.endTime)
+            : detail.updatedAt
+              ? `${fmtDateTime(detail.updatedAt)}（最后写入）`
+              : '—',
+        },
         { label: '距离', value: `${fmtKm(detail.distance)} km` },
         { label: '时长', value: fmtDuration(detail.duration) },
         { label: '平均配速', value: fmtPace(detail.avgPace) },
