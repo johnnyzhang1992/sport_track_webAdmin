@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Tag, Button, Table, Loading, MessagePlugin, Tabs, Space, DateRangePicker } from 'tdesign-react'
+import { Card, Tag, Button, Table, Loading, MessagePlugin, Tabs, Space, DateRangePicker, Select } from 'tdesign-react'
 import type { TableSort } from 'tdesign-react'
 import { ArrowLeft, MapPin, Trophy } from '@phosphor-icons/react'
 import { adminApi, type UserDetail as UserDetailData, type BestRow, type LoginLogItem } from '../api'
@@ -17,6 +17,13 @@ const RANGES = [
 ] as const
 
 const GENDER_LABELS: Record<number, string> = { 0: '未知', 1: '男', 2: '女' }
+
+const STATUS_OPTIONS = [
+  { label: '全部状态', value: '' },
+  { label: '已完成', value: 'finished' },
+  { label: '进行中', value: 'in_progress' },
+  { label: '已作废', value: 'cancelled' },
+]
 
 interface ActivityRow {
   id: string
@@ -44,7 +51,7 @@ export default function UserDetail() {
   const [actPage, setActPage] = useState(1)
   const [actLoading, setActLoading] = useState(false)
   const [actTypeFilter] = useState<string>('')
-  const [actStatusFilter] = useState<string>('finished')
+  const [actStatusFilter, setActStatusFilter] = useState<string>('finished')
   const [actSort, setActSort] = useState<TableSort>()
   const [actPageSize, setActPageSize] = useState(10)
 
@@ -306,6 +313,18 @@ export default function UserDetail() {
 
           {/* 轨迹列表 */}
           <Card className="page-card">
+            <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Select
+                style={{ width: 140 }}
+                value={actStatusFilter}
+                options={STATUS_OPTIONS}
+                onChange={(v) => {
+                  setActStatusFilter(String(v))
+                  setActPage(1)
+                  loadActs(1, undefined, String(v))
+                }}
+              />
+            </div>
             <Table
               data={acts}
               rowKey="id"
