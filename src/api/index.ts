@@ -159,6 +159,21 @@ export interface ActivityDetail {
   markers: ActivityMarker[]
 }
 
+export interface ActivityGeoStats {
+  range: string
+  total: number
+  provinces: { province: string; count: number; cities: { city: string; count: number }[] }[]
+}
+
+export type ActivityStatsRange = 'today' | 'week' | 'month' | 'year' | 'all'
+export type ActivityStatsSection = {
+  count: number
+  distance: number
+  duration: number
+  calories: number
+  elevationGain: number
+}
+
 export const adminApi = {
   login: (username: string, password: string) =>
     request<{ token: string }>('/admin/login', { method: 'POST', body: { username, password } }),
@@ -173,6 +188,12 @@ export const adminApi = {
     request<{ type: string; data: { date: string; newUsers: number; newActivities: number }[] }>(`/admin/trend?type=${type}`),
   regionStats: () =>
     request<{ provinces: { name: string; count: number }[]; cities: { name: string; count: number }[] }>('/admin/region-stats'),
+  activityStats: () =>
+    request<Record<ActivityStatsRange, ActivityStatsSection>>('/admin/activity-stats'),
+  activityTrend: (days = 30) =>
+    request<{ days: number; data: { date: string; count: number; distanceKm: number }[] }>(`/admin/activity-trend?days=${days}`),
+  activityGeoStats: (range: ActivityStatsRange = 'all') =>
+    request<ActivityGeoStats>(`/admin/activity-geo-stats?range=${range}`),
   activities: (page = 1, pageSize = 20, filters: Record<string, string> = {}) => {
     const qs = Object.entries(filters)
       .filter(([, v]) => v !== '' && v != null)
