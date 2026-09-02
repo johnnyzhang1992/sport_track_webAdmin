@@ -7,7 +7,7 @@ import { adminApi } from '../api'
 interface User {
   id: string
   nickname: string
-  openid: string
+  uid: string
   weightKg: number
   heightCm: number
   createdAt: string
@@ -91,7 +91,7 @@ export default function Users() {
               </Button>
             ),
           },
-          { colKey: 'openid', title: 'openid', ellipsis: true },
+          { colKey: 'uid', title: 'UID', width: 130, ellipsis: true, cell: ({ row }) => row.uid || '—' },
           { colKey: 'weightKg', title: '体重 kg' },
           { colKey: 'heightCm', title: '身高 cm' },
           { colKey: 'activityCount', title: '轨迹数', cell: ({ row }) => <Tag>{row.activityCount ?? 0}</Tag> },
