@@ -66,6 +66,9 @@ export interface OverviewSection {
   duration: number // 秒
   elevationGain: number // 米
   calories: number // 千卡
+  byStatus?: { status: string; count: number }[] // 各状态轨迹数（prev 周期为空）
+  finishRate?: number // 完成率 %
+  byType?: { type: string; count: number; distance: number; duration: number }[] // 各类型统计（仅 finished）
 }
 
 /** 个人最佳单行（按运动类型） */
@@ -172,6 +175,9 @@ export type ActivityStatsSection = {
   duration: number
   calories: number
   elevationGain: number
+  byStatus: { status: string; count: number }[]
+  finishRate: number
+  byType: { type: string; count: number; distance: number; duration: number }[]
 }
 
 export const adminApi = {

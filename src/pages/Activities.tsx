@@ -97,12 +97,14 @@ export default function Activities() {
 
   // 数据概况 + 趋势 + 省份分布
   const [stats, setStats] = useState<Record<ActivityStatsRange, ActivityStatsSection> | null>(null)
-  const [statsRange, setStatsRange] = useState<ActivityStatsRange>('all')
+  const [statsRange, setStatsRange] = useState<ActivityStatsRange>('today')
   const [geo, setGeo] = useState<ActivityGeoStats | null>(null)
   const [geoRange, setGeoRange] = useState<ActivityStatsRange>('all')
   const [trend, setTrend] = useState<{ date: string; count: number; distanceKm: number }[]>([])
   const trendRef = useRef<HTMLDivElement>(null)
   const trendChart = useRef<echarts.ECharts | null>(null)
+  const typePieRef = useRef<HTMLDivElement>(null)
+  const typePieChart = useRef<echarts.ECharts | null>(null)
 
   useEffect(() => {
     load(1)
@@ -198,6 +200,42 @@ export default function Activities() {
   }
 
   const sec: ActivityStatsSection | undefined = stats?.[statsRange]
+  const byStatus = sec?.byStatus ?? []
+  const statusMap: Record<string, number> = { finished: 0, in_progress: 0, cancelled: 0 }
+  byStatus.forEach((b) => {
+    statusMap[b.status] = b.count
+  })
+  const totalCount = byStatus.reduce((sum, b) => sum + b.count, 0)
+  const finishRate = sec?.finishRate ?? 0
+
+  // 类型占比饼图（跟随概况 range）
+  useEffect(() => {
+    const list = sec?.byType ?? []
+    if (!typePieRef.current || list.length === 0) return
+    if (!typePieChart.current) typePieChart.current = echarts.init(typePieRef.current)
+    typePieChart.current.setOption(
+      {
+        tooltip: { trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
+        legend: { orient: 'vertical', right: 4, top: 'middle', itemHeight: 10, itemWidth: 10, textStyle: { fontSize: 12 } },
+        series: [
+          {
+            name: '运动类型',
+            type: 'pie',
+            radius: ['42%', '68%'],
+            center: ['34%', '50%'],
+            avoidLabelOverlap: true,
+            itemStyle: { borderColor: '#fff', borderWidth: 2 },
+            label: { show: false },
+            data: list.map((t) => ({ name: typeLabel(t.type), value: t.count })),
+          },
+        ],
+      },
+      true,
+    )
+    const ro = new ResizeObserver(() => typePieChart.current?.resize())
+    ro.observe(typePieRef.current)
+    return () => ro.disconnect()
+  }, [sec])
   // 省份分布 → FootprintMap 城市平铺数据（组件内按省聚合上色、点击省份弹窗展示城市）
   const geoCities = (geo?.provinces ?? []).flatMap((p) =>
     p.cities.map((c) => ({ name: c.city, province: p.province, count: c.count })),
@@ -212,19 +250,67 @@ export default function Activities() {
         style={{ marginBottom: 16 }}
         actions={<RangeButtons value={statsRange} onChange={setStatsRange} />}
       >
-        <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+        <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
           {[
-            { label: '轨迹数', value: String(sec?.count ?? 0) },
+            { label: '轨迹数', value: String(totalCount) },
             { label: '距离 (km)', value: kmNum(sec?.distance ?? 0) },
             { label: '时长', value: fmtDuration(sec?.duration ?? 0) },
             { label: '卡路里 (千卡)', value: String(sec?.calories ?? 0) },
-            { label: '累计爬升 (m)', value: String(sec?.elevationGain ?? 0) },
           ].map((it) => (
             <div key={it.label} style={{ background: '#f8f9fb', borderRadius: 8, padding: '14px 16px' }}>
               <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{it.value}</div>
               <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 2 }}>{it.label}</div>
             </div>
           ))}
+        </div>
+        <div
+          style={{
+            marginTop: 12,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 24,
+            fontSize: 13,
+            color: '#4e5969',
+            background: '#f8f9fb',
+            borderRadius: 8,
+            padding: '10px 16px',
+          }}
+        >
+          <span style={{ color: '#8a93a6' }}>状态分布</span>
+          <span>
+            已完成 <b style={{ fontVariantNumeric: 'tabular-nums' }}>{statusMap.finished}</b>
+          </span>
+          <span>
+            进行中 <b style={{ fontVariantNumeric: 'tabular-nums' }}>{statusMap.in_progress}</b>
+          </span>
+          <span>
+            已作废 <b style={{ fontVariantNumeric: 'tabular-nums' }}>{statusMap.cancelled}</b>
+          </span>
+          <span style={{ color: '#00a870' }}>
+            完成率 <b>{finishRate}%</b>
+          </span>
+        </div>
+      </Card>
+
+      {/* 运动类型统计（跟随概况 range）：左饼图 + 右明细列表 */}
+      <Card
+        className="page-card"
+        title="运动类型统计"
+        style={{ marginBottom: 16 }}
+        actions={<RangeButtons value={statsRange} onChange={setStatsRange} />}
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, alignItems: 'center' }}>
+          <div ref={typePieRef} style={{ width: '100%', height: 260 }} />
+          <Table
+            rowKey="type"
+            data={sec?.byType ?? []}
+            columns={[
+              { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{typeLabel(row.type)}</Tag> },
+              { colKey: 'count', title: '轨迹数', align: 'center' },
+              { colKey: 'distance', title: '距离 (km)', align: 'center', cell: ({ row }) => kmNum(row.distance) },
+              { colKey: 'duration', title: '时长', align: 'center', cell: ({ row }) => fmtDuration(row.duration) },
+            ]}
+          />
         </div>
       </Card>
 

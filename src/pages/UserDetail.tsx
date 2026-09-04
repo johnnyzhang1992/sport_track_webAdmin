@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Tag, Button, Table, Loading, MessagePlugin, Tabs, Space, DateRangePicker, Select } from 'tdesign-react'
 import type { TableSort } from 'tdesign-react'
 import { ArrowLeft, MapPin, Trophy } from '@phosphor-icons/react'
+import * as echarts from 'echarts'
 import { adminApi, type UserDetail as UserDetailData, type BestRow, type LoginLogItem } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
@@ -40,7 +41,7 @@ export default function UserDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const [detail, setDetail] = useState<UserDetailData | null>(null)
-  const [range, setRange] = useState<(typeof RANGES)[number]['key']>('total')
+  const [range, setRange] = useState<(typeof RANGES)[number]['key']>('today')
   const [detailId, setDetailId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('activities') // 'activities' | 'login'
   const [selectedProvince, setSelectedProvince] = useState<string | null>(null) // 地图下钻选中的省份
@@ -124,6 +125,37 @@ export default function UserDetail() {
     }
   }, [id, activeTab])
 
+  // 类型占比饼图（跟随概况 range；hooks 必须在 early return 之前，依赖用顶部 detail 避免 TDZ）
+  const typePieRef = useRef<HTMLDivElement>(null)
+  const typePieChart = useRef<echarts.ECharts | null>(null)
+  useEffect(() => {
+    const list = detail?.overview?.[range]?.byType ?? []
+    if (!typePieRef.current || list.length === 0) return
+    if (!typePieChart.current) typePieChart.current = echarts.init(typePieRef.current)
+    typePieChart.current.setOption(
+      {
+        tooltip: { trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
+        legend: { orient: 'vertical', right: 4, top: 'middle', itemHeight: 10, itemWidth: 10, textStyle: { fontSize: 12 } },
+        series: [
+          {
+            name: '运动类型',
+            type: 'pie',
+            radius: ['42%', '68%'],
+            center: ['34%', '50%'],
+            avoidLabelOverlap: true,
+            itemStyle: { borderColor: '#fff', borderWidth: 2 },
+            label: { show: false },
+            data: list.map((t) => ({ name: typeLabel(t.type), value: t.count })),
+          },
+        ],
+      },
+      true,
+    )
+    const ro = new ResizeObserver(() => typePieChart.current?.resize())
+    ro.observe(typePieRef.current)
+    return () => ro.disconnect()
+  }, [detail, range])
+
   const bestRows = (() => {
     if (!detail) return []
     const { maxDistanceByType, minPaceByType, maxDurationByType, maxElevationByType } = detail.best
@@ -151,6 +183,14 @@ export default function UserDetail() {
 
   const { user, overview, footprint } = detail
   const sec = overview[range]
+  const byStatus = sec?.byStatus ?? []
+  const statusMap: Record<string, number> = { finished: 0, in_progress: 0, cancelled: 0 }
+  byStatus.forEach((b) => {
+    statusMap[b.status] = b.count
+  })
+  const totalCount = byStatus.reduce((sum, b) => sum + b.count, 0)
+  const finishRate = sec?.finishRate ?? 0
+
 
   return (
     <div>
@@ -234,12 +274,11 @@ export default function UserDetail() {
               </div>
             }
           >
-            <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+            <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
               {[
-                { label: '轨迹数', value: String(sec.count) },
+                { label: '轨迹数', value: String(totalCount) },
                 { label: '距离 (km)', value: fmtKm(sec.distance) },
                 { label: '时长', value: fmtDuration(sec.duration) },
-                { label: '累计爬升 (m)', value: String(sec.elevationGain ?? 0) },
                 { label: '卡路里 (千卡)', value: String(sec.calories ?? 0) },
               ].map((it) => (
                 <div key={it.label} style={{ background: '#f8f9fb', borderRadius: 8, padding: '14px 16px' }}>
@@ -247,6 +286,74 @@ export default function UserDetail() {
                   <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 2 }}>{it.label}</div>
                 </div>
               ))}
+            </div>
+            <div
+              style={{
+                marginTop: 12,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 24,
+                fontSize: 13,
+                color: '#4e5969',
+                background: '#f8f9fb',
+                borderRadius: 8,
+                padding: '10px 16px',
+              }}
+            >
+              <span style={{ color: '#8a93a6' }}>状态分布</span>
+              <span>
+                已完成 <b style={{ fontVariantNumeric: 'tabular-nums' }}>{statusMap.finished}</b>
+              </span>
+              <span>
+                进行中 <b style={{ fontVariantNumeric: 'tabular-nums' }}>{statusMap.in_progress}</b>
+              </span>
+              <span>
+                已作废 <b style={{ fontVariantNumeric: 'tabular-nums' }}>{statusMap.cancelled}</b>
+              </span>
+              <span style={{ color: '#00a870' }}>
+                完成率 <b>{finishRate}%</b>
+              </span>
+            </div>
+          </Card>
+
+          {/* 运动类型统计（跟随概况 range）：左饼图 + 右明细列表 */}
+          <Card
+            className="page-card"
+            title="运动类型统计"
+            style={{ marginBottom: 16 }}
+            actions={
+              <div style={{ display: 'flex', gap: 8 }}>
+                {RANGES.map((r) => (
+                  <div
+                    key={r.key}
+                    onClick={() => setRange(r.key)}
+                    style={{
+                      padding: '4px 14px',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      background: range === r.key ? '#0052d9' : '#f2f3f5',
+                      color: range === r.key ? '#fff' : '#4e5969',
+                    }}
+                  >
+                    {r.label}
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, alignItems: 'center' }}>
+              <div ref={typePieRef} style={{ width: '100%', height: 260 }} />
+              <Table
+                rowKey="type"
+                data={sec.byType ?? []}
+                columns={[
+                  { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{typeLabel(row.type)}</Tag> },
+                  { colKey: 'count', title: '轨迹数', align: 'center' },
+                  { colKey: 'distance', title: '距离 (km)', align: 'center', cell: ({ row }) => fmtKm(row.distance) },
+                  { colKey: 'duration', title: '时长', align: 'center', cell: ({ row }) => fmtDuration(row.duration) },
+                ]}
+              />
             </div>
           </Card>
 
