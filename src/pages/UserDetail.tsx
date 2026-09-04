@@ -19,6 +19,29 @@ const RANGES = [
 
 const GENDER_LABELS: Record<number, string> = { 0: '未知', 1: '男', 2: '女' }
 
+function RangeButtons({ value, onChange }: { value: (typeof RANGES)[number]['key']; onChange: (v: (typeof RANGES)[number]['key']) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      {RANGES.map((r) => (
+        <div
+          key={r.key}
+          onClick={() => onChange(r.key)}
+          style={{
+            padding: '4px 14px',
+            borderRadius: 6,
+            fontSize: 13,
+            cursor: 'pointer',
+            background: value === r.key ? '#0052d9' : '#f2f3f5',
+            color: value === r.key ? '#fff' : '#4e5969',
+          }}
+        >
+          {r.label}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 const STATUS_OPTIONS = [
   { label: '全部状态', value: '' },
   { label: '已完成', value: 'finished' },
@@ -248,31 +271,25 @@ export default function UserDetail() {
       {/* Tab 切换：轨迹详情 / 登录记录 */}
       <Tabs value={activeTab} onChange={(v) => setActiveTab(v as string)} style={{ marginTop: 16 }}>
         <Tabs.TabPanel value="activities" label={`轨迹记录（${actTotal}）`}>
-          {/* 数据概况（今日/周/月/年/累计切换） */}
+          {/* 统一时间范围筛选（数据概况 / 运动类型统计 两处联动） */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 10,
+              margin: '16px 0 12px',
+              paddingRight: 24,
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#1f2329' }}>时间范围</span>
+            <RangeButtons value={range} onChange={setRange} />
+          </div>
+          {/* 数据概况 */}
           <Card
             className="page-card"
             title="数据概况"
             style={{ marginBottom: 16 }}
-            actions={
-              <div style={{ display: 'flex', gap: 8 }}>
-                {RANGES.map((r) => (
-                  <div
-                    key={r.key}
-                    onClick={() => setRange(r.key)}
-                    style={{
-                      padding: '4px 14px',
-                      borderRadius: 6,
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      background: range === r.key ? '#0052d9' : '#f2f3f5',
-                      color: range === r.key ? '#fff' : '#4e5969',
-                    }}
-                  >
-                    {r.label}
-                  </div>
-                ))}
-              </div>
-            }
           >
             <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
               {[
@@ -321,26 +338,6 @@ export default function UserDetail() {
             className="page-card"
             title="运动类型统计"
             style={{ marginBottom: 16 }}
-            actions={
-              <div style={{ display: 'flex', gap: 8 }}>
-                {RANGES.map((r) => (
-                  <div
-                    key={r.key}
-                    onClick={() => setRange(r.key)}
-                    style={{
-                      padding: '4px 14px',
-                      borderRadius: 6,
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      background: range === r.key ? '#0052d9' : '#f2f3f5',
-                      color: range === r.key ? '#fff' : '#4e5969',
-                    }}
-                  >
-                    {r.label}
-                  </div>
-                ))}
-              </div>
-            }
           >
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, alignItems: 'center' }}>
               <div ref={typePieRef} style={{ width: '100%', height: 260 }} />

@@ -97,9 +97,8 @@ export default function Activities() {
 
   // 数据概况 + 趋势 + 省份分布
   const [stats, setStats] = useState<Record<ActivityStatsRange, ActivityStatsSection> | null>(null)
-  const [statsRange, setStatsRange] = useState<ActivityStatsRange>('today')
+  const [range, setRange] = useState<ActivityStatsRange>('today') // 统一时间范围：概况/类型统计/省份分布三处联动
   const [geo, setGeo] = useState<ActivityGeoStats | null>(null)
-  const [geoRange, setGeoRange] = useState<ActivityStatsRange>('all')
   const [trend, setTrend] = useState<{ date: string; count: number; distanceKm: number }[]>([])
   const trendRef = useRef<HTMLDivElement>(null)
   const trendChart = useRef<echarts.ECharts | null>(null)
@@ -113,8 +112,8 @@ export default function Activities() {
   }, [])
 
   useEffect(() => {
-    adminApi.activityGeoStats(geoRange).then(setGeo).catch(() => setGeo(null))
-  }, [geoRange])
+    adminApi.activityGeoStats(range).then(setGeo).catch(() => setGeo(null))
+  }, [range])
 
   // 趋势折线：轨迹数（左轴）+ 距离 km（右轴）
   useEffect(() => {
@@ -199,7 +198,7 @@ export default function Activities() {
     setTimeout(() => load(1), 0)
   }
 
-  const sec: ActivityStatsSection | undefined = stats?.[statsRange]
+  const sec: ActivityStatsSection | undefined = stats?.[range]
   const byStatus = sec?.byStatus ?? []
   const statusMap: Record<string, number> = { finished: 0, in_progress: 0, cancelled: 0 }
   byStatus.forEach((b) => {
@@ -243,12 +242,16 @@ export default function Activities() {
 
   return (
     <>
-      {/* 轨迹数据概况（range 切换） */}
+      {/* 统一时间范围筛选（数据概况 / 运动类型统计 / 轨迹省份分布 三处联动） */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: 12, paddingRight: 24 }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#1f2329' }}>时间范围</span>
+        <RangeButtons value={range} onChange={setRange} />
+      </div>
+      {/* 轨迹数据概况 */}
       <Card
         className="page-card"
         title="轨迹数据概况"
         style={{ marginBottom: 16 }}
-        actions={<RangeButtons value={statsRange} onChange={setStatsRange} />}
       >
         <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
           {[
@@ -297,7 +300,6 @@ export default function Activities() {
         className="page-card"
         title="运动类型统计"
         style={{ marginBottom: 16 }}
-        actions={<RangeButtons value={statsRange} onChange={setStatsRange} />}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, alignItems: 'center' }}>
           <div ref={typePieRef} style={{ width: '100%', height: 260 }} />
@@ -322,7 +324,7 @@ export default function Activities() {
         <Card
           className="page-card"
           title={`轨迹省份分布${geo ? `（${geo.total}）` : ''}`}
-          actions={<RangeButtons value={geoRange} onChange={setGeoRange} />}
+
         >
           {geoCities.length > 0 ? (
             <FootprintMap cities={geoCities} />
