@@ -156,6 +156,8 @@ body {
 /* 深色模式适配 */
 .app-content {
   background: var(--td-bg-color-page, #f5f6f8);
+  min-width: 0;
+  overflow-x: hidden; /* ECharts canvas 固定像素宽，窗口缩窄时不撑出横向滚动条 */
 }
 :root[theme-mode='dark'] .page-card {
   border: 1px solid var(--td-component-stroke, #2a3140);

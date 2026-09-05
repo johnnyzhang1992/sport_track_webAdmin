@@ -316,7 +316,7 @@ export default function FootprintMap({ cities, onProvinceClick, height = 400 }: 
   return (
     <>
       <div style={{ position: 'relative' }}>
-        <div ref={chartRef} style={{ width: '100%', height }} />
+        <div ref={chartRef} style={{ width: '100%', height, overflow: 'hidden' }} />
         <div
           ref={controlsRef}
           style={{

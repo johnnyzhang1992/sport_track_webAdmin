@@ -166,7 +166,7 @@ export default function Dashboard() {
       </Card>
 
       {/* 轨迹点亮地图（左） + 省份/城市分布列表（右） */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start', marginTop: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, alignItems: 'start', marginTop: 24 }}>
         <Card className="page-card" title={`轨迹点亮地图${region ? `（${region.provinces.length} 省）` : ''}`}>
           <FootprintMap cities={region?.cities ?? []} height={480} />
         </Card>

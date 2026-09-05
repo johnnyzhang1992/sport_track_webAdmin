@@ -7,6 +7,7 @@ import { adminApi, type ActivityStatsRange, type ActivityStatsSection, type Acti
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
 import FootprintMap from '../components/FootprintMap'
+import { chartColors, onThemeChange } from '../utils/theme'
 
 interface Activity {
   id: string
@@ -104,6 +105,10 @@ export default function Activities() {
   const trendChart = useRef<echarts.ECharts | null>(null)
   const typePieRef = useRef<HTMLDivElement>(null)
   const typePieChart = useRef<echarts.ECharts | null>(null)
+  const [themeV, setThemeV] = useState(0)
+
+  // 主题切换 → 图表重绘
+  useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
 
   useEffect(() => {
     load(1)
@@ -310,7 +315,7 @@ export default function Activities() {
         title="运动类型统计"
         style={{ marginBottom: 16 }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)', gap: 16, alignItems: 'center' }}>
           <div ref={typePieRef} style={{ width: '100%', height: 260 }} />
           <Table
             rowKey="type"
@@ -326,7 +331,7 @@ export default function Activities() {
       </Card>
 
       {/* 趋势 + 省份分布 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: 16, marginBottom: 16 }}>
         <Card className="page-card" title="轨迹趋势（近 30 天）">
           <div ref={trendRef} style={{ width: '100%', height: 300 }} />
         </Card>

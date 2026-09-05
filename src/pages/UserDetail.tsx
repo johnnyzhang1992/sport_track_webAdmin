@@ -344,7 +344,7 @@ export default function UserDetail() {
             title="运动类型统计"
             style={{ marginBottom: 16 }}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, alignItems: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)', gap: 16, alignItems: 'center' }}>
               <div ref={typePieRef} style={{ width: '100%', height: 260 }} />
               <Table
                 rowKey="type"
@@ -360,7 +360,7 @@ export default function UserDetail() {
           </Card>
 
           {/* 个人最佳 + 点亮城市 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: 16, marginBottom: 16 }}>
             <Card className="page-card" title={<span><Trophy size={16} style={{ verticalAlign: '-3px', marginRight: 6, color: '#e37318' }} />个人最佳（按运动类型）</span>}>
               <Table
                 data={bestRows}
