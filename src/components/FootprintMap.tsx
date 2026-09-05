@@ -3,6 +3,7 @@ import * as echarts from 'echarts'
 import { Button, Space, Dialog, MessagePlugin } from 'tdesign-react'
 import { Plus, Minus } from '@phosphor-icons/react'
 import { adminApi } from '../api'
+import { chartColors, onThemeChange } from '../utils/theme'
 
 interface City {
   name: string
@@ -13,6 +14,7 @@ interface City {
 interface Props {
   cities: City[]
   onProvinceClick?: (province: string) => void
+  height?: number // 图表容器高度（px），默认 400
 }
 
 // 省份名称到行政区划代码的映射
@@ -53,11 +55,13 @@ const PROVINCE_TO_CODE: Record<string, string> = {
   '澳门特别行政区': '820000',
 }
 
-export default function FootprintMap({ cities, onProvinceClick }: Props) {
+export default function FootprintMap({ cities, onProvinceClick, height = 400 }: Props) {
   const chartRef = useRef<HTMLDivElement>(null)
   const controlsRef = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
   const [provinceModal, setProvinceModal] = useState<{ name: string; visible: boolean }>({ name: '', visible: false })
+  const [themeV, setThemeV] = useState(0)
+  useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
   const provinceChartRef = useRef<HTMLDivElement>(null)
   const provinceChart = useRef<echarts.ECharts | null>(null)
 
@@ -156,11 +160,12 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
         provinceChart.current = echarts.init(provinceChartRef.current!)
       }
 
+      const cc = chartColors()
       const option: echarts.EChartsOption = {
         title: {
           text: `${provinceModal.name} - 城市点亮`,
           left: 'center',
-          textStyle: { fontSize: 16 },
+          textStyle: { fontSize: 16, color: cc.text },
         },
         tooltip: {
           trigger: 'item',
@@ -240,10 +245,16 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
       .then((geoJson) => {
         echarts.registerMap('china', geoJson)
 
+        const c = chartColors()
         const option: echarts.EChartsOption = {
+          textStyle: { color: c.text },
           tooltip: {
             trigger: 'item',
-            formatter: (params: any) => `${params.name}<br/>轨迹数：${params.value ?? 0}`,
+            // 地图系列未点亮省份的 value 是 NaN（?? 不兜 NaN），用 Number.isFinite 判断
+            formatter: (params: any) => {
+              const val = Number(params.value)
+              return `${params.name}<br/>${Number.isFinite(val) && val > 0 ? `轨迹数：${val}` : '未点亮'}`
+            },
           },
           visualMap: {
             min: 0,
@@ -251,6 +262,7 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
             left: 'left',
             bottom: '20',
             text: ['高', '低'],
+            textStyle: { color: c.text },
             calculable: true,
             inRange: {
               color: ['#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#313695'],
@@ -299,12 +311,12 @@ export default function FootprintMap({ cities, onProvinceClick }: Props) {
       chart.current?.dispose()
       chart.current = null
     }
-  }, [cities, onProvinceClick])
+  }, [cities, onProvinceClick, themeV])
 
   return (
     <>
       <div style={{ position: 'relative' }}>
-        <div ref={chartRef} style={{ width: '100%', height: 400 }} />
+        <div ref={chartRef} style={{ width: '100%', height }} />
         <div
           ref={controlsRef}
           style={{

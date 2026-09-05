@@ -65,8 +65,8 @@ function RangeButtons({ value, onChange }: { value: ActivityStatsRange; onChange
             borderRadius: 6,
             fontSize: 13,
             cursor: 'pointer',
-            background: value === r.key ? '#0052d9' : '#f2f3f5',
-            color: value === r.key ? '#fff' : '#4e5969',
+            background: value === r.key ? '#0052d9' : 'var(--td-bg-color-secondarycontainer, #f2f3f5)',
+            color: value === r.key ? '#fff' : 'var(--td-text-color-secondary, #4e5969)',
           }}
         >
           {r.label}
@@ -119,15 +119,22 @@ export default function Activities() {
   useEffect(() => {
     if (!trendRef.current || trend.length === 0) return
     if (!trendChart.current) trendChart.current = echarts.init(trendRef.current)
+    const c = chartColors()
     trendChart.current.setOption(
       {
+        textStyle: { color: c.text },
         tooltip: { trigger: 'axis' },
-        legend: { data: ['轨迹数', '距离 (km)'], top: 0 },
+        legend: { data: ['轨迹数', '距离 (km)'], top: 0, textStyle: { color: c.text } },
         grid: { left: 44, right: 48, top: 32, bottom: 28 },
-        xAxis: { type: 'category', data: trend.map((d) => d.date.slice(5)) },
+        xAxis: {
+          type: 'category',
+          data: trend.map((d) => d.date.slice(5)),
+          axisLabel: { color: c.text },
+          axisLine: { lineStyle: { color: c.axisLine } },
+        },
         yAxis: [
-          { type: 'value', name: '条' },
-          { type: 'value', name: 'km' },
+          { type: 'value', name: '条', nameTextStyle: { color: c.text }, axisLabel: { color: c.text }, splitLine: { lineStyle: { color: c.splitLine } } },
+          { type: 'value', name: 'km', nameTextStyle: { color: c.text }, axisLabel: { color: c.text }, splitLine: { show: false } },
         ],
         series: [
           {
@@ -153,7 +160,7 @@ export default function Activities() {
     const ro = new ResizeObserver(() => trendChart.current?.resize())
     ro.observe(trendRef.current)
     return () => ro.disconnect()
-  }, [trend])
+  }, [trend, themeV])
 
   const buildFilters = () => ({
     type,
@@ -212,10 +219,12 @@ export default function Activities() {
     const list = sec?.byType ?? []
     if (!typePieRef.current || list.length === 0) return
     if (!typePieChart.current) typePieChart.current = echarts.init(typePieRef.current)
+    const c = chartColors()
     typePieChart.current.setOption(
       {
+        textStyle: { color: c.text },
         tooltip: { trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
-        legend: { orient: 'vertical', right: 4, top: 'middle', itemHeight: 10, itemWidth: 10, textStyle: { fontSize: 12 } },
+        legend: { orient: 'vertical', right: 4, top: 'middle', itemHeight: 10, itemWidth: 10, textStyle: { fontSize: 12, color: c.text } },
         series: [
           {
             name: '运动类型',
@@ -234,7 +243,7 @@ export default function Activities() {
     const ro = new ResizeObserver(() => typePieChart.current?.resize())
     ro.observe(typePieRef.current)
     return () => ro.disconnect()
-  }, [sec])
+  }, [sec, themeV])
   // 省份分布 → FootprintMap 城市平铺数据（组件内按省聚合上色、点击省份弹窗展示城市）
   const geoCities = (geo?.provinces ?? []).flatMap((p) =>
     p.cities.map((c) => ({ name: c.city, province: p.province, count: c.count })),
@@ -244,7 +253,7 @@ export default function Activities() {
     <>
       {/* 统一时间范围筛选（数据概况 / 运动类型统计 / 轨迹省份分布 三处联动） */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: 12, paddingRight: 24 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#1f2329' }}>时间范围</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--td-text-color-primary, #1f2329)' }}>时间范围</span>
         <RangeButtons value={range} onChange={setRange} />
       </div>
       {/* 轨迹数据概况 */}
@@ -260,9 +269,9 @@ export default function Activities() {
             { label: '时长', value: fmtDuration(sec?.duration ?? 0) },
             { label: '卡路里 (千卡)', value: String(sec?.calories ?? 0) },
           ].map((it) => (
-            <div key={it.label} style={{ background: '#f8f9fb', borderRadius: 8, padding: '14px 16px' }}>
+            <div key={it.label} style={{ background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)', borderRadius: 8, padding: '14px 16px' }}>
               <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{it.value}</div>
-              <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 2 }}>{it.label}</div>
+              <div style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 2 }}>{it.label}</div>
             </div>
           ))}
         </div>
@@ -273,13 +282,13 @@ export default function Activities() {
             flexWrap: 'wrap',
             gap: 24,
             fontSize: 13,
-            color: '#4e5969',
-            background: '#f8f9fb',
+            color: 'var(--td-text-color-secondary, #4e5969)',
+            background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)',
             borderRadius: 8,
             padding: '10px 16px',
           }}
         >
-          <span style={{ color: '#8a93a6' }}>状态分布</span>
+          <span style={{ color: 'var(--td-text-color-placeholder, #8a93a6)' }}>状态分布</span>
           <span>
             已完成 <b style={{ fontVariantNumeric: 'tabular-nums' }}>{statusMap.finished}</b>
           </span>
@@ -329,7 +338,7 @@ export default function Activities() {
           {geoCities.length > 0 ? (
             <FootprintMap cities={geoCities} />
           ) : (
-            <div style={{ padding: '60px 0', textAlign: 'center', color: '#8a93a6', fontSize: 13 }}>
+            <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--td-text-color-placeholder, #8a93a6)', fontSize: 13 }}>
               该时间段暂无轨迹分布数据
             </div>
           )}
@@ -351,7 +360,7 @@ export default function Activities() {
           <Button variant="outline" onClick={handleReset}>重置</Button>
         </div>
         <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-          <span style={{ fontSize: 13, color: '#8a93a6' }}>距离(km)</span>
+          <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>距离(km)</span>
           <InputNumber
             placeholder="最小"
             style={{ width: 110 }}
@@ -365,7 +374,7 @@ export default function Activities() {
             value={maxDist}
             onChange={(v) => setMaxDist(typeof v === 'number' ? v : v === undefined || v === null ? undefined : Number(v))}
           />
-          <span style={{ fontSize: 13, color: '#8a93a6', marginLeft: 8 }}>时长(分)</span>
+          <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)', marginLeft: 8 }}>时长(分)</span>
           <InputNumber
             placeholder="最小"
             style={{ width: 110 }}

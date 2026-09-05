@@ -4,6 +4,7 @@ import { Card, Tag, Button, Table, Loading, MessagePlugin, Tabs, Space, DateRang
 import type { TableSort } from 'tdesign-react'
 import { ArrowLeft, MapPin, Trophy } from '@phosphor-icons/react'
 import * as echarts from 'echarts'
+import { chartColors, onThemeChange } from '../utils/theme'
 import { adminApi, type UserDetail as UserDetailData, type BestRow, type LoginLogItem } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
@@ -31,8 +32,8 @@ function RangeButtons({ value, onChange }: { value: (typeof RANGES)[number]['key
             borderRadius: 6,
             fontSize: 13,
             cursor: 'pointer',
-            background: value === r.key ? '#0052d9' : '#f2f3f5',
-            color: value === r.key ? '#fff' : '#4e5969',
+            background: value === r.key ? '#0052d9' : 'var(--td-bg-color-secondarycontainer, #f2f3f5)',
+            color: value === r.key ? '#fff' : 'var(--td-text-color-secondary, #4e5969)',
           }}
         >
           {r.label}
@@ -151,14 +152,18 @@ export default function UserDetail() {
   // 类型占比饼图（跟随概况 range；hooks 必须在 early return 之前，依赖用顶部 detail 避免 TDZ）
   const typePieRef = useRef<HTMLDivElement>(null)
   const typePieChart = useRef<echarts.ECharts | null>(null)
+  const [themeV, setThemeV] = useState(0)
+  useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
   useEffect(() => {
     const list = detail?.overview?.[range]?.byType ?? []
     if (!typePieRef.current || list.length === 0) return
     if (!typePieChart.current) typePieChart.current = echarts.init(typePieRef.current)
+    const c = chartColors()
     typePieChart.current.setOption(
       {
+        textStyle: { color: c.text },
         tooltip: { trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
-        legend: { orient: 'vertical', right: 4, top: 'middle', itemHeight: 10, itemWidth: 10, textStyle: { fontSize: 12 } },
+        legend: { orient: 'vertical', right: 4, top: 'middle', itemHeight: 10, itemWidth: 10, textStyle: { fontSize: 12, color: c.text } },
         series: [
           {
             name: '运动类型',
@@ -177,7 +182,7 @@ export default function UserDetail() {
     const ro = new ResizeObserver(() => typePieChart.current?.resize())
     ro.observe(typePieRef.current)
     return () => ro.disconnect()
-  }, [detail, range])
+  }, [detail, range, themeV])
 
   const bestRows = (() => {
     if (!detail) return []
@@ -258,10 +263,10 @@ export default function UserDetail() {
                 轨迹 {detail.activityCount}
               </Tag>
             </div>
-            <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 4 }}>
+            <div style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 4 }}>
               openid：{user.openid} · 身高 {user.heightCm ?? '—'}cm / 体重 {user.weightKg ?? '—'}kg
             </div>
-            <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 2 }}>
+            <div style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 2 }}>
               注册 {fmtDateTime(user.createdAt)} · 最后登录 {fmtDateTime(user.lastLoginAt)}
             </div>
           </div>
@@ -282,7 +287,7 @@ export default function UserDetail() {
               paddingRight: 24,
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#1f2329' }}>时间范围</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--td-text-color-primary, #1f2329)' }}>时间范围</span>
             <RangeButtons value={range} onChange={setRange} />
           </div>
           {/* 数据概况 */}
@@ -298,9 +303,9 @@ export default function UserDetail() {
                 { label: '时长', value: fmtDuration(sec.duration) },
                 { label: '卡路里 (千卡)', value: String(sec.calories ?? 0) },
               ].map((it) => (
-                <div key={it.label} style={{ background: '#f8f9fb', borderRadius: 8, padding: '14px 16px' }}>
+                <div key={it.label} style={{ background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)', borderRadius: 8, padding: '14px 16px' }}>
                   <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{it.value}</div>
-                  <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 2 }}>{it.label}</div>
+                  <div style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 2 }}>{it.label}</div>
                 </div>
               ))}
             </div>
@@ -311,13 +316,13 @@ export default function UserDetail() {
                 flexWrap: 'wrap',
                 gap: 24,
                 fontSize: 13,
-                color: '#4e5969',
-                background: '#f8f9fb',
+                color: 'var(--td-text-color-secondary, #4e5969)',
+                background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)',
                 borderRadius: 8,
                 padding: '10px 16px',
               }}
             >
-              <span style={{ color: '#8a93a6' }}>状态分布</span>
+              <span style={{ color: 'var(--td-text-color-placeholder, #8a93a6)' }}>状态分布</span>
               <span>
                 已完成 <b style={{ fontVariantNumeric: 'tabular-nums' }}>{statusMap.finished}</b>
               </span>
@@ -376,7 +381,7 @@ export default function UserDetail() {
               actions={
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   {!selectedProvince && (
-                    <span style={{ fontSize: 13, color: '#8a93a6' }}>
+                    <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>
                       已点亮 <strong style={{ color: '#0052d9' }}>{footprint.provinceCount}</strong> 省 · <strong style={{ color: '#0052d9' }}>{footprint.cityCount}</strong> 城
                     </span>
                   )}
@@ -396,7 +401,7 @@ export default function UserDetail() {
                   />
                   {selectedProvince && (
                     <div style={{ marginTop: 12 }}>
-                      <div style={{ fontSize: 13, color: '#8a93a6', marginBottom: 8 }}>{selectedProvince} 已点亮城市：</div>
+                      <div style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)', marginBottom: 8 }}>{selectedProvince} 已点亮城市：</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                         {footprint.cities
                           .filter((c) => c.province === selectedProvince)
@@ -410,7 +415,7 @@ export default function UserDetail() {
                   )}
                 </>
               ) : (
-                <div style={{ fontSize: 13, color: '#8a93a6' }}>暂无足迹数据</div>
+                <div style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>暂无足迹数据</div>
               )}
             </Card>
           </div>
@@ -495,9 +500,9 @@ export default function UserDetail() {
                   { label: '最近半年', value: String(loginStats.last180Days) },
                   { label: '累计', value: String(loginStats.total) },
                 ].map((it) => (
-                  <div key={it.label} style={{ background: '#f8f9fb', borderRadius: 8, padding: '14px 16px' }}>
+                  <div key={it.label} style={{ background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)', borderRadius: 8, padding: '14px 16px' }}>
                     <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{it.value}</div>
-                    <div style={{ fontSize: 13, color: '#8a93a6', marginTop: 2 }}>{it.label}</div>
+                    <div style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 2 }}>{it.label}</div>
                   </div>
                 ))}
               </div>

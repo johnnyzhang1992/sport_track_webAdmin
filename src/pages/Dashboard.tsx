@@ -3,6 +3,8 @@ import { Card, Row, Col, Table } from 'tdesign-react'
 import * as echarts from 'echarts'
 import { Users as UsersIcon, MapTrifold, CheckCircle, Ruler, UserPlus, Eye } from '@phosphor-icons/react'
 import { adminApi } from '../api'
+import FootprintMap from '../components/FootprintMap'
+import { chartColors, onThemeChange, isDark } from '../utils/theme'
 
 interface Overview {
   userCount: number
@@ -15,6 +17,7 @@ export default function Dashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [stats, setStats] = useState<{ [k: string]: { newUsers: number; newActivities: number; uv: number; pv: number } } | null>(null)
   const [trendType, setTrendType] = useState('day')
+  const [themeV, setThemeV] = useState(0) // 主题切换计数（触发图表重绘）
   const [region, setRegion] = useState<{ provinces: { name: string; count: number }[]; cities: { name: string; count: number }[] } | null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
@@ -24,6 +27,9 @@ export default function Dashboard() {
     adminApi.adminStats().then(setStats).catch(() => setStats(null))
     adminApi.regionStats().then(setRegion).catch(() => setRegion(null))
   }, [])
+
+  // 主题切换 → 图表重绘
+  useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
 
   // 趋势图（按维度切换：天/周/月/年）
   const trendLabel = (date: string) => {
@@ -42,12 +48,19 @@ export default function Dashboard() {
       .then((d) => {
         if (disposed || !chartRef.current) return
         if (!chart.current) chart.current = echarts.init(chartRef.current)
+        const c = chartColors()
         chart.current.setOption({
+          textStyle: { color: c.text },
           tooltip: { trigger: 'axis' },
-          legend: { data: ['新增用户', '新增轨迹'], top: 0, itemWidth: 14, itemHeight: 10 },
+          legend: { data: ['新增用户', '新增轨迹'], top: 0, itemWidth: 14, itemHeight: 10, textStyle: { color: c.text } },
           grid: { left: 40, right: 16, top: 52, bottom: 28 }, // top 让出 legend 空间避免重叠
-          xAxis: { type: 'category', data: d.data.map((x) => trendLabel(x.date)), axisLabel: { interval: 'auto' } },
-          yAxis: { type: 'value', minInterval: 1 },
+          xAxis: {
+            type: 'category',
+            data: d.data.map((x) => trendLabel(x.date)),
+            axisLabel: { interval: 'auto', color: c.text },
+            axisLine: { lineStyle: { color: c.axisLine } },
+          },
+          yAxis: { type: 'value', minInterval: 1, axisLabel: { color: c.text }, splitLine: { lineStyle: { color: c.splitLine } } },
           series: [
             { name: '新增用户', type: 'bar', data: d.data.map((x) => x.newUsers), itemStyle: { color: '#0052d9', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 18 },
             { name: '新增轨迹', type: 'bar', data: d.data.map((x) => x.newActivities), itemStyle: { color: '#00a870', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 18 },
@@ -58,7 +71,7 @@ export default function Dashboard() {
     return () => {
       disposed = true
     }
-  }, [trendType])
+  }, [trendType, themeV])
 
   const overviewItems = [
     { title: '用户总数', value: overview?.userCount ?? 0, Icon: UsersIcon, tint: '#0052d9' },
@@ -139,8 +152,8 @@ export default function Dashboard() {
                   borderRadius: 6,
                   fontSize: 13,
                   cursor: 'pointer',
-                  background: trendType === t.key ? '#0052d9' : '#f2f3f5',
-                  color: trendType === t.key ? '#fff' : '#4e5969',
+                  background: trendType === t.key ? '#0052d9' : 'var(--td-bg-color-secondarycontainer, #f2f3f5)',
+                  color: trendType === t.key ? '#fff' : 'var(--td-text-color-secondary, #4e5969)',
                 }}
               >
                 {t.label}
@@ -152,29 +165,30 @@ export default function Dashboard() {
         <div ref={chartRef} style={{ height: 300 }} />
       </Card>
 
-      {/* 省份/城市分布 */}
-      <Row gutter={16} style={{ marginTop: 16 }}>
-        <Col span={12}>
-          <Card className="page-card" title="轨迹省份分布">
+      {/* 轨迹点亮地图（左） + 省份/城市分布列表（右） */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start', marginTop: 24 }}>
+        <Card className="page-card" title={`轨迹点亮地图${region ? `（${region.provinces.length} 省）` : ''}`}>
+          <FootprintMap cities={region?.cities ?? []} height={480} />
+        </Card>
+        <div>
+          <Card className="page-card" title="轨迹省份分布" style={{ marginBottom: 16 }}>
             <Table
               data={region?.provinces ?? []}
               rowKey="name"
               columns={regionCols('provinces')}
-              maxHeight={320}
+              maxHeight={280}
             />
           </Card>
-        </Col>
-        <Col span={12}>
           <Card className="page-card" title="轨迹城市分布">
             <Table
               data={region?.cities ?? []}
               rowKey="name"
               columns={regionCols('cities')}
-              maxHeight={320}
+              maxHeight={200}
             />
           </Card>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </div>
   )
 }

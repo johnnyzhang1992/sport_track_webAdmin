@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Button, Dialog, Input, MessagePlugin } from 'tdesign-react'
+import { MoonStars, Sun } from '@phosphor-icons/react'
+import { getTheme, toggleTheme } from '../utils/theme'
 import type { MenuValue } from 'tdesign-react'
 import { clearToken, adminApi, getUsername } from '../api'
 
@@ -19,6 +21,13 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
   const [oldPwd, setOldPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [pwdLoading, setPwdLoading] = useState(false)
+  const [theme, setTheme] = useState(getTheme()) // 当前主题（按钮图标/文案用）
+
+  const handleToggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    toggleTheme()
+  }
 
   const handleMenu = (v: MenuValue) => navigate(String(v))
 
@@ -54,14 +63,22 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
   return (
     <Layout style={{ height: '100vh' }}>
       <Aside width="200px">
-        <div className="brand"><span className="brand-logo">迹</span>管理后台</div>
-        <Menu width={200} className="side-menu" value={'/' + (location.pathname.split('/')[1] || '')} onChange={handleMenu}>
-          {MENUS.map((m) => (
-            <Menu.MenuItem key={m.value} value={m.value}>
-              {m.label}
-            </Menu.MenuItem>
-          ))}
-        </Menu>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div className="brand"><span className="brand-logo">迹</span>管理后台</div>
+          <Menu width={200} className="side-menu" value={'/' + (location.pathname.split('/')[1] || '')} onChange={handleMenu}>
+            {MENUS.map((m) => (
+              <Menu.MenuItem key={m.value} value={m.value}>
+                {m.label}
+              </Menu.MenuItem>
+            ))}
+          </Menu>
+          <div className="aside-bottom">
+            <button className="aside-theme-btn" onClick={handleToggleTheme}>
+              {theme === 'dark' ? <Sun size={18} /> : <MoonStars size={18} />}
+              <span>{theme === 'dark' ? '浅色模式' : '深色模式'}</span>
+            </button>
+          </div>
+        </div>
       </Aside>
       <Layout>
         <Header className="topbar">
@@ -71,14 +88,14 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
               <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#0052d9,#2b6cf6)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 }}>
                 {(getUsername() || 'A')[0].toUpperCase()}
               </span>
-              <span style={{ fontSize: 13, color: '#5a6472' }}>{getUsername() || 'admin'}</span>
+              <span style={{ fontSize: 13, color: 'var(--td-text-color-secondary)' }}>{getUsername() || 'admin'}</span>
             </div>
-            <span style={{ width: 1, height: 20, background: '#e8eaee' }} />
+            <span style={{ width: 1, height: 20, background: 'var(--td-component-stroke)' }} />
             <Button size="small" theme="primary" variant="text" onClick={() => setPwdVisible(true)}>修改密码</Button>
             <Button size="small" theme="danger" variant="text" onClick={handleLogout}>退出登录</Button>
           </div>
         </Header>
-        <Content style={{ padding: 24, overflow: 'auto', background: '#f5f6f8' }}>{children}</Content>
+        <Content className="app-content" style={{ padding: 24, overflow: 'auto' }}>{children}</Content>
       </Layout>
 
       <Dialog

@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import 'tdesign-react/es/style/index.css'
 import './index.css'
+import { initTheme } from './utils/theme'
 import App from './App'
+
+initTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
