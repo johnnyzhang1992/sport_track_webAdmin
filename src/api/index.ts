@@ -193,7 +193,7 @@ export const adminApi = {
   adminTrend: (type = 'day') =>
     request<{ type: string; data: { date: string; newUsers: number; newActivities: number }[] }>(`/admin/trend?type=${type}`),
   regionStats: () =>
-    request<{ provinces: { name: string; count: number }[]; cities: { name: string; count: number }[] }>('/admin/region-stats'),
+    request<{ provinces: { name: string; count: number }[]; cities: { name: string; province: string; count: number }[] }>('/admin/region-stats'),
   activityStats: () =>
     request<Record<ActivityStatsRange, ActivityStatsSection>>('/admin/activity-stats'),
   activityTrend: (days = 30) =>

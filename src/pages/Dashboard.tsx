@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Card, Row, Col, Table } from 'tdesign-react'
+import { Card, Table } from 'tdesign-react'
 import * as echarts from 'echarts'
 import { Users as UsersIcon, MapTrifold, CheckCircle, Ruler, UserPlus, Eye } from '@phosphor-icons/react'
 import { adminApi } from '../api'
 import FootprintMap from '../components/FootprintMap'
-import { chartColors, onThemeChange, isDark } from '../utils/theme'
+import { chartColors, onThemeChange } from '../utils/theme'
 
 interface Overview {
   userCount: number
@@ -18,7 +18,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<{ [k: string]: { newUsers: number; newActivities: number; uv: number; pv: number } } | null>(null)
   const [trendType, setTrendType] = useState('day')
   const [themeV, setThemeV] = useState(0) // 主题切换计数（触发图表重绘）
-  const [region, setRegion] = useState<{ provinces: { name: string; count: number }[]; cities: { name: string; count: number }[] } | null>(null)
+  const [region, setRegion] = useState<{ provinces: { name: string; count: number }[]; cities: { name: string; province: string; count: number }[] } | null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
 
