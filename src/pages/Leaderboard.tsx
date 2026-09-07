@@ -51,6 +51,32 @@ function fmtBestValue(key: string, v: number): string {
 
 const RANK_COLORS: Record<number, string> = { 1: '#e6a23c', 2: '#8a93a6', 3: '#c0764a' }
 
+/** 按钮组（与概览/用户详情页 RangeButtons 同款样式） */
+function SegmentButtons({ value, options, onChange }: { value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {options.map((o) => (
+        <div
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          style={{
+            padding: '4px 14px',
+            borderRadius: 6,
+            fontSize: 13,
+            cursor: 'pointer',
+            background: value === o.value ? '#0052d9' : 'var(--td-bg-color-secondarycontainer, #f2f3f5)',
+            color: value === o.value ? '#fff' : 'var(--td-text-color-secondary, #4e5969)',
+          }}
+        >
+          {o.label}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const FILTER_LABEL_STYLE: React.CSSProperties = { fontSize: 13, color: 'var(--td-text-color-secondary, #4e5969)', flexShrink: 0 }
+
 export default function Leaderboard() {
   const navigate = useNavigate()
   const [type, setType] = useState('walking')
@@ -80,28 +106,30 @@ export default function Leaderboard() {
   return (
     <div>
       <Card className="page-card" title="运动榜" style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Select value={type} onChange={(v) => setType(v as string)} options={TYPE_OPTIONS} style={{ width: 120 }} />
-          <Select
-            value={period}
-            onChange={(v) => setPeriod(v as string)}
-            options={PERIOD_OPTIONS}
-            style={{ width: 110 }}
-          />
-          <Select
-            value={province}
-            onChange={(v) => setProvince(v as string)}
-            options={[
-              { value: '全国', label: '全国' },
-              ...(regions?.provinces ?? []).map((p) => ({ value: p.name, label: `${p.name}（${p.count}）` })),
-            ]}
-            style={{ width: 200 }}
-          />
-          {data && (
-            <span style={{ fontSize: 13, color: 'var(--td-text-color-secondary)' }}>
-              {data.players} 人参与 · 已有 {regions?.totalUsers ?? '—'} 位注册用户
-            </span>
-          )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={FILTER_LABEL_STYLE}>运动类型</span>
+            <SegmentButtons value={type} options={TYPE_OPTIONS} onChange={setType} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={FILTER_LABEL_STYLE}>榜单周期</span>
+            <SegmentButtons value={period} options={PERIOD_OPTIONS} onChange={setPeriod} />
+            <span style={{ ...FILTER_LABEL_STYLE, marginLeft: 12 }}>省份</span>
+            <Select
+              value={province}
+              onChange={(v) => setProvince(v as string)}
+              options={[
+                { value: '全国', label: '全国' },
+                ...(regions?.provinces ?? []).map((p) => ({ value: p.name, label: `${p.name}（${p.count}）` })),
+              ]}
+              style={{ width: 180 }}
+            />
+            {data && (
+              <span style={{ fontSize: 13, color: 'var(--td-text-color-secondary)' }}>
+                {data.players} 人参与 · 已有 {regions?.totalUsers ?? '—'} 位注册用户
+              </span>
+            )}
+          </div>
         </div>
 
         {/* 本榜最佳：当前筛选下的单项纪录 */}
