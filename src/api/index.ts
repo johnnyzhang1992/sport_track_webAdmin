@@ -149,6 +149,7 @@ export interface ActivityDetail {
   fastestKm: number | null
   calories: number
   elevationGain: number
+  minAltitude: number | null
   maxAltitude: number | null
   startAddress: string
   endAddress: string
@@ -166,6 +167,45 @@ export interface ActivityGeoStats {
   range: string
   total: number
   provinces: { province: string; count: number; cities: { city: string; count: number }[] }[]
+}
+
+/** 运动榜排行行（管理端带 userId 供跳转用户详情） */
+export interface LeaderboardRankRow {
+  rank: number
+  userId?: string
+  name: string
+  gender: number
+  avatarUrl: string
+  avatarPreset: string
+  distanceKm: number
+  count: number
+}
+
+/** 运动榜"本榜最佳"行（value 单位由 key 决定：米 / 秒） */
+export interface LeaderboardBestRow {
+  key: string
+  value: number
+  name: string
+  gender: number
+  avatarUrl: string
+  avatarPreset: string
+}
+
+export interface LeaderboardData {
+  type: string
+  province: string
+  period: string
+  /** 参与人数（有该类型轨迹的用户数） */
+  players: number
+  top: LeaderboardRankRow[]
+  me: LeaderboardRankRow | null
+  best: LeaderboardBestRow[]
+}
+
+export interface LeaderboardRegions {
+  provinces: { name: string; count: number; users: number }[]
+  cities: { name: string; province: string; count: number; users: number }[]
+  totalUsers: number
 }
 
 export type ActivityStatsRange = 'today' | 'week' | 'month' | 'year' | 'all'
@@ -219,6 +259,11 @@ export const adminApi = {
   userLoginStats: (id: string) =>
     request<{ last7Days: number; last30Days: number; last180Days: number; total: number }>(`/admin/users/${id}/login-stats`),
   activityDetail: (id: string) => request<ActivityDetail>(`/admin/activities/${id}`),
+  leaderboard: (type: string, period: string, province: string, limit = 20) =>
+    request<LeaderboardData>(
+      `/admin/leaderboard?type=${type}&period=${period}&province=${encodeURIComponent(province)}&limit=${limit}`,
+    ),
+  leaderboardRegions: () => request<LeaderboardRegions>('/admin/leaderboard-regions'),
   getChinaMap: () => request<any>('/geo/china-map'),
   getProvinceMap: (adcode: number) => request<any>(`/geo/province-map?adcode=${adcode}`),
 }

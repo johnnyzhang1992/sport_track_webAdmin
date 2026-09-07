@@ -12,6 +12,7 @@ const MENUS = [
   { value: '/dashboard', label: '数据概览' },
   { value: '/users', label: '用户管理' },
   { value: '/activities', label: '轨迹管理' },
+  { value: '/leaderboard', label: '运动榜' },
 ]
 
 export default function BasicLayout({ children }: { children: React.ReactNode }) {

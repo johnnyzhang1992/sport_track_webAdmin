@@ -111,6 +111,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
         { label: '最快 1km', value: fmtPace(detail.fastestKm) },
         { label: '卡路里', value: `${detail.calories ?? 0} 千卡` },
         { label: '累计爬升', value: `${detail.elevationGain ?? 0} m` },
+        { label: '最低海拔', value: detail.minAltitude != null ? `${detail.minAltitude} m` : '—' },
         { label: '最高海拔', value: detail.maxAltitude != null ? `${detail.maxAltitude} m` : '—' },
         { label: '暂停时长', value: fmtDuration(Math.round((detail.pausedMs ?? 0) / 1000)) },
         { label: '轨迹点', value: `${detail.pointsCount} 个` },
