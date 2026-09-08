@@ -7,6 +7,7 @@ import { adminApi } from '../api'
 interface User {
   id: string
   nickname: string
+  gender: number
   uid: string
   weightKg: number
   heightCm: number
@@ -91,6 +92,7 @@ export default function Users() {
               </Button>
             ),
           },
+          { colKey: 'gender', title: '性别', width: 70, cell: ({ row }) => row.gender === 1 ? <Tag theme="primary">男</Tag> : row.gender === 2 ? <Tag theme="danger">女</Tag> : <span style={{ color: 'var(--td-text-color-placeholder, #bbb)' }}>未知</span> },
           { colKey: 'uid', title: 'UID', width: 130, ellipsis: true, cell: ({ row }) => row.uid || '—' },
           { colKey: 'weightKg', title: '体重 kg' },
           { colKey: 'heightCm', title: '身高 cm' },
