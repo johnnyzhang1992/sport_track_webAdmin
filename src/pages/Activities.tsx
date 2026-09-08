@@ -13,6 +13,7 @@ interface Activity {
   id: string
   userId: string
   userNickname: string
+  userGender: number
   type: string
   status: string
   distance: number
@@ -414,6 +415,7 @@ export default function Activities() {
                 </Button>
               ),
             },
+            { colKey: 'userGender', title: '性别', width: 70, cell: ({ row }) => row.userGender === 1 ? <Tag theme="primary">男</Tag> : row.userGender === 2 ? <Tag theme="danger">女</Tag> : <span style={{ color: 'var(--td-text-color-placeholder, #bbb)' }}>未知</span> },
             { colKey: 'type', title: '类型', cell: ({ row }) => <Tag>{typeLabel(row.type)}</Tag> },
             {
               colKey: 'status',

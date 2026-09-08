@@ -85,6 +85,7 @@ export default function Users() {
           {
             colKey: 'nickname',
             title: '昵称',
+            width: 150,
             ellipsis: true,
             cell: ({ row }) => (
               <Button theme="primary" variant="text" style={{ padding: 0 }} onClick={() => navigate(`/users/${row.id}`)}>
@@ -93,7 +94,7 @@ export default function Users() {
             ),
           },
           { colKey: 'gender', title: '性别', width: 70, cell: ({ row }) => row.gender === 1 ? <Tag theme="primary">男</Tag> : row.gender === 2 ? <Tag theme="danger">女</Tag> : <span style={{ color: 'var(--td-text-color-placeholder, #bbb)' }}>未知</span> },
-          { colKey: 'uid', title: 'UID', width: 130, ellipsis: true, cell: ({ row }) => row.uid || '—' },
+          { colKey: 'uid', title: 'UID', width: 90, ellipsis: true, cell: ({ row }) => row.uid || '—' },
           { colKey: 'weightKg', title: '体重 kg' },
           { colKey: 'heightCm', title: '身高 cm' },
           { colKey: 'activityCount', title: '轨迹数', cell: ({ row }) => <Tag>{row.activityCount ?? 0}</Tag> },
