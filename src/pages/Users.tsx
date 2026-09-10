@@ -199,12 +199,13 @@ export default function Users() {
   }
 
   // 分布数据 → FootprintMap 口径（count）：省维度用于着色，城市用于下钻
+  // 「未知」不是真实省份，不上地图（避免拉高色阶导致其他省份偏暗），仅保留在右侧列表
   const geoCities = useMemo(
-    () => (geo?.cities ?? []).map((c) => ({ name: c.name, province: c.province, count: c.users })),
+    () => (geo?.cities ?? []).filter((c) => c.province !== '未知').map((c) => ({ name: c.name, province: c.province, count: c.users })),
     [geo],
   )
   const geoProvinces = useMemo(
-    () => (geo?.provinces ?? []).map((p) => ({ name: p.name, count: p.users })),
+    () => (geo?.provinces ?? []).filter((p) => p.name !== '未知').map((p) => ({ name: p.name, count: p.users })),
     [geo],
   )
   const provinceTotalUsers = useMemo(
@@ -260,7 +261,7 @@ export default function Users() {
 
       {/* 用户分布：左地图（省维度点亮，用户越多越亮） + 右省份分布列表 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: 16, marginBottom: 16 }}>
-        <Card className="page-card" title={`用户分布地图${geo ? `（${geo.provinces.length} 省点亮）` : ''}`}>
+        <Card className="page-card" title={`用户分布地图${geo ? `（${geoProvinces.length} 省点亮）` : ''}`}>
           {geoCities.length > 0 ? (
             <FootprintMap
               cities={geoCities}
