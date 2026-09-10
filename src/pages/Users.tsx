@@ -29,9 +29,6 @@ const RANGES: { key: UserTrendRange; label: string }[] = [
   { key: 'year', label: '最近一年' },
 ]
 
-/** 用户分布地图配色：用户越多颜色越亮（低→高） */
-const USER_MAP_RAMP = ['#1b3a6b', '#1e63b8', '#2196f3', '#63c7f5', '#b6e8ff']
-
 /** 时间范围按钮组（与轨迹页 RangeButtons 同款） */
 function RangeButtons({ value, onChange }: { value: UserTrendRange; onChange: (v: UserTrendRange) => void }) {
   return (
@@ -259,7 +256,7 @@ export default function Users() {
         </Card>
       </div>
 
-      {/* 用户分布：左地图（省维度点亮，用户越多越亮） + 右省份分布列表 */}
+      {/* 用户分布：左地图（省维度点亮，用户越多颜色越深） + 右省份分布列表 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: 16, marginBottom: 16 }}>
         <Card className="page-card" title={`用户分布地图${geo ? `（${geoProvinces.length} 省点亮）` : ''}`}>
           {geoCities.length > 0 ? (
@@ -267,7 +264,6 @@ export default function Users() {
               cities={geoCities}
               provinces={geoProvinces}
               valueLabel="用户数"
-              colorRamp={USER_MAP_RAMP}
               height={420}
             />
           ) : (
