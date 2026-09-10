@@ -11,11 +11,25 @@ interface City {
   count: number
 }
 
+interface Province {
+  name: string
+  count: number
+}
+
 interface Props {
   cities: City[]
+  /** 省维度数据：提供时主地图按省着色（不再由城市求和），城市仍用于点击省份下钻 */
+  provinces?: Province[]
+  /** tooltip 数值文案，默认“轨迹数” */
+  valueLabel?: string
+  /** visualMap 配色（低→高），默认蓝色系 */
+  colorRamp?: string[]
   onProvinceClick?: (province: string) => void
   height?: number // 图表容器高度（px），默认 400
 }
+
+/** 默认配色（低→高，深→浅），与轨迹/排行页地图一致 */
+const DEFAULT_COLOR_RAMP = ['#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#313695']
 
 // 省份名称到行政区划代码的映射
 const PROVINCE_TO_CODE: Record<string, string> = {
@@ -55,7 +69,7 @@ const PROVINCE_TO_CODE: Record<string, string> = {
   '澳门特别行政区': '820000',
 }
 
-export default function FootprintMap({ cities, onProvinceClick, height = 400 }: Props) {
+export default function FootprintMap({ cities, provinces, valueLabel = '轨迹数', colorRamp = DEFAULT_COLOR_RAMP, onProvinceClick, height = 400 }: Props) {
   const chartRef = useRef<HTMLDivElement>(null)
   const controlsRef = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
@@ -171,7 +185,7 @@ export default function FootprintMap({ cities, onProvinceClick, height = 400 }: 
           trigger: 'item',
           formatter: (params: any) => {
             const val = params.value ?? 0
-            return `${params.name}<br/>${val > 0 ? `轨迹数：${val}` : '未点亮'}`
+            return `${params.name}<br/>${val > 0 ? `${valueLabel}：${val}` : '未点亮'}`
           },
         },
         visualMap: {
@@ -227,11 +241,15 @@ export default function FootprintMap({ cities, onProvinceClick, height = 400 }: 
   useEffect(() => {
     if (!chartRef.current || !cities.length) return
 
-    // 按省聚合
+    // 按省聚合：显式省数据优先（避免跨市用户求和口径不一致），否则由城市汇总
     const provMap = new Map<string, number>()
-    cities.forEach((c) => {
-      provMap.set(c.province, (provMap.get(c.province) || 0) + c.count)
-    })
+    if (provinces && provinces.length > 0) {
+      provinces.forEach((p) => provMap.set(p.name, p.count))
+    } else {
+      cities.forEach((c) => {
+        provMap.set(c.province, (provMap.get(c.province) || 0) + c.count)
+      })
+    }
 
     const data = [...provMap.entries()].map(([name, value]) => ({ name, value }))
     const maxVal = Math.max(...data.map((d) => d.value), 1)
@@ -253,7 +271,7 @@ export default function FootprintMap({ cities, onProvinceClick, height = 400 }: 
             // 地图系列未点亮省份的 value 是 NaN（?? 不兜 NaN），用 Number.isFinite 判断
             formatter: (params: any) => {
               const val = Number(params.value)
-              return `${params.name}<br/>${Number.isFinite(val) && val > 0 ? `轨迹数：${val}` : '未点亮'}`
+              return `${params.name}<br/>${Number.isFinite(val) && val > 0 ? `${valueLabel}：${val}` : '未点亮'}`
             },
           },
           visualMap: {
@@ -265,7 +283,7 @@ export default function FootprintMap({ cities, onProvinceClick, height = 400 }: 
             textStyle: { color: c.text },
             calculable: true,
             inRange: {
-              color: ['#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#313695'],
+              color: colorRamp,
             },
           },
           series: [
@@ -311,7 +329,7 @@ export default function FootprintMap({ cities, onProvinceClick, height = 400 }: 
       chart.current?.dispose()
       chart.current = null
     }
-  }, [cities, onProvinceClick, themeV])
+  }, [cities, provinces, valueLabel, colorRamp, onProvinceClick, themeV])
 
   return (
     <>

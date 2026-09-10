@@ -208,6 +208,33 @@ export interface LeaderboardRegions {
   totalUsers: number
 }
 
+/** 用户概况（管理端用户列表页顶部）：总量 + 今日/近 7 天/近 30 天 注册数 + 登录 UV、PV */
+export interface UserStats {
+  totalUsers: number
+  today: { newUsers: number; uv: number; pv: number }
+  week: { newUsers: number; uv: number; pv: number }
+  month: { newUsers: number; uv: number; pv: number }
+}
+
+/** 用户趋势时间范围：近一周 / 近一月 / 近一年 */
+export type UserTrendRange = 'week' | 'month' | 'year'
+
+export interface UserTrendPoint {
+  date: string
+  newUsers: number
+  uv: number
+  pv: number
+}
+
+/** 用户地理分布（按登录 IP 归属地聚合的去重用户数） */
+export interface UserGeoStats {
+  totalUsers: number
+  /** 有归属地记录的去重用户累计（跨省登录会重复计入各省） */
+  totalLocated: number
+  provinces: { name: string; users: number }[]
+  cities: { name: string; province: string; users: number }[]
+}
+
 export type ActivityStatsRange = 'today' | 'week' | 'month' | 'year' | 'all'
 export type ActivityStatsSection = {
   count: number
@@ -264,6 +291,10 @@ export const adminApi = {
       `/admin/leaderboard?type=${type}&period=${period}&province=${encodeURIComponent(province)}&limit=${limit}`,
     ),
   leaderboardRegions: () => request<LeaderboardRegions>('/admin/leaderboard-regions'),
+  userStats: () => request<UserStats>('/admin/user-stats'),
+  userTrend: (range: UserTrendRange = 'week') =>
+    request<{ range: UserTrendRange; data: UserTrendPoint[] }>(`/admin/user-trend?range=${range}`),
+  userGeoStats: () => request<UserGeoStats>('/admin/user-geo-stats'),
   getChinaMap: () => request<any>('/geo/china-map'),
   getProvinceMap: (adcode: number) => request<any>(`/geo/province-map?adcode=${adcode}`),
 }
