@@ -7,6 +7,7 @@ import Users from './pages/Users'
 import UserDetail from './pages/UserDetail'
 import Activities from './pages/Activities'
 import Leaderboard from './pages/Leaderboard'
+import Topics from './pages/Topics'
 import { getToken, setToken, saveUsername, adminApi } from './api'
 
 function LoginPage() {
@@ -96,6 +97,7 @@ export default function App() {
                 <Route path="/users/:id" element={<UserDetail />} />
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
+                <Route path="/topics" element={<Topics />} />
               </Routes>
             </BasicLayout>
           </Guard>

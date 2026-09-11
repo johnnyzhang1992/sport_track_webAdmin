@@ -60,8 +60,7 @@ async function request<T>(path: string, opts: { method?: string; body?: unknown 
 }
 
 /** 统计概况分段（今日/周/月/年/累计） */
-export interface OverviewSection {
-  count: number
+export interface OverviewSection {  count: number
   distance: number // 米
   duration: number // 秒
   elevationGain: number // 米
@@ -247,12 +246,48 @@ export type ActivityStatsSection = {
   byType: { type: string; count: number; distance: number; duration: number }[]
 }
 
+/** 专题（官方信息页） */
+export interface TopicItem {
+  id: string
+  title: string
+  coverUrl: string
+  content: string // markdown 正文
+  published: boolean
+  effectiveAt: number // 生效时间（epoch ms）
+  expiresAt: number | null // 过期时间（null=长期）
+  createdAt: number
+  updatedAt: number
+}
+
+/** 专题图片上传（multipart；后端存 OSS，返回裸 URL） */
+export async function uploadTopicImage(file: File): Promise<{ url: string }> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${API_BASE}/admin/topics/upload`, { method: 'POST', headers, body: fd })
+  if (res.status === 401) {
+    redirectToLogin()
+    throw new Error('登录已过期，请重新登录')
+  }
+  const json = await res.json().catch(() => ({ success: false, message: '响应解析失败' }))
+  if (!json.success) throw new Error(json.message || `上传失败(${res.status})`)
+  return json.data as { url: string }
+}
+
 export const adminApi = {
   login: (username: string, password: string) =>
     request<{ token: string }>('/admin/login', { method: 'POST', body: { username, password } }),
   changePassword: (oldPassword: string, newPassword: string) =>
     request<null>('/admin/password', { method: 'PUT', body: { oldPassword, newPassword } }),
   overview: () => request<{ userCount: number; activityCount: number; finishedCount: number; totalDistanceKm: number }>('/admin/overview'),
+  // 专题（官方信息页）
+  topics: () => request<TopicItem[]>('/admin/topics'),
+  createTopic: (body: Partial<TopicItem>) => request<TopicItem>('/admin/topics', { method: 'POST', body }),
+  updateTopic: (id: string, body: Partial<TopicItem>) =>
+    request<TopicItem>(`/admin/topics/${id}`, { method: 'PUT', body }),
+  deleteTopic: (id: string) => request<null>(`/admin/topics/${id}`, { method: 'DELETE' }),
   users: (page = 1, pageSize = 20, keyword = '', sortBy = '', order = '') =>
     request<{ total: number; page: number; items: unknown[] }>(`/admin/users?page=${page}&pageSize=${pageSize}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}${sortBy ? `&sortBy=${sortBy}` : ''}${order ? `&order=${order}` : ''}`),
   adminStats: () =>
