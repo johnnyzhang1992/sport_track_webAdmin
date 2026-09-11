@@ -24,7 +24,6 @@ const GENDER_LABELS: Record<number, string> = { 0: '未知', 1: '男', 2: '女' 
 /** 本榜最佳指标文案与格式化（与小程序口径一致；后端回原始值：米 / 秒） */
 const BEST_LABELS: Record<string, string> = {
   farthest: '最长距离',
-  longest: '最长时间',
   fastestKm: '最快配速',
   fastestAvg: '最快均速',
   maxClimb: '最大爬升',
@@ -32,13 +31,6 @@ const BEST_LABELS: Record<string, string> = {
 
 function fmtBestValue(key: string, v: number): string {
   if (key === 'farthest') return `${(v / 1000).toFixed(2)} km`
-  if (key === 'longest') {
-    const s = Math.max(0, Math.round(v))
-    const h = Math.floor(s / 3600)
-    const m = Math.floor((s % 3600) / 60)
-    const p = (n: number) => String(n).padStart(2, '0')
-    return h > 0 ? `${h}:${p(m)}:${p(s % 60)}` : `${p(m)}:${p(s % 60)}`
-  }
   if (key === 'fastestKm') {
     const m = Math.floor(v / 60)
     const s = Math.round(v - m * 60)
