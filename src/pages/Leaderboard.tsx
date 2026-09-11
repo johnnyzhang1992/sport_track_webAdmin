@@ -127,7 +127,7 @@ export default function Leaderboard() {
         {/* 本榜最佳：当前筛选下的单项纪录 */}
         {data && data.best.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, margin: '16px 0' }}>
-            {data.best.map((b) => (
+            {data.best.filter((b) => b.key !== 'longest').map((b) => (
               <div
                 key={b.key}
                 style={{ background: 'var(--td-bg-color-secondarycontainer, #f2f3f5)', borderRadius: 8, padding: '10px 14px' }}
