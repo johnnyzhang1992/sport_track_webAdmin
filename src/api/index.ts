@@ -321,6 +321,15 @@ export const adminApi = {
   userLoginStats: (id: string) =>
     request<{ last7Days: number; last30Days: number; last180Days: number; total: number }>(`/admin/users/${id}/login-stats`),
   activityDetail: (id: string) => request<ActivityDetail>(`/admin/activities/${id}`),
+  // 修改轨迹状态（管理端纠错：finished↔cancelled 互转，不提供删除）
+  updateActivityStatus: (id: string, status: 'finished' | 'cancelled') =>
+    request<{ id: string; status: string; changed: boolean }>(`/admin/activities/${id}/status`, {
+      method: 'PUT',
+      body: { status },
+    }),
+  // 用户备注（仅管理后台可见）
+  updateUserNote: (id: string, note: string) =>
+    request<{ id: string; note: string }>(`/admin/users/${id}/note`, { method: 'PUT', body: { note } }),
   leaderboard: (type: string, period: string, province: string, limit = 20) =>
     request<LeaderboardData>(
       `/admin/leaderboard?type=${type}&period=${period}&province=${encodeURIComponent(province)}&limit=${limit}`,

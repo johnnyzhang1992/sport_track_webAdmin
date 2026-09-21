@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Tag, Input, Button, Space } from 'tdesign-react'
+import { Card, Table, Tag, Input, Button, Space, Dialog, MessagePlugin, Textarea } from 'tdesign-react'
 import type { TableSort } from 'tdesign-react'
 import * as echarts from 'echarts'
 import { adminApi, type UserStats, type UserTrendPoint, type UserTrendRange, type UserGeoStats } from '../api'
@@ -20,6 +20,7 @@ interface User {
   lastLoginIp: string
   lastLoginProvince: string
   lastLoginCity: string
+  note: string
 }
 
 /** 用户趋势时间范围（快捷选择） */
@@ -73,6 +74,20 @@ export default function Users() {
   const loginRef = useRef<HTMLDivElement>(null)
   const regChart = useRef<echarts.ECharts | null>(null)
   const loginChart = useRef<echarts.ECharts | null>(null)
+
+  // 备注编辑弹窗（仅管理后台可见的内部备注）
+  const [noteEdit, setNoteEdit] = useState<{ id: string; nickname: string; note: string } | null>(null)
+  const saveNote = () => {
+    if (!noteEdit) return
+    adminApi
+      .updateUserNote(noteEdit.id, noteEdit.note)
+      .then((d) => {
+        setData((rows) => rows.map((r) => (r.id === noteEdit.id ? { ...r, note: d.note } : r)))
+        MessagePlugin.success('备注已保存')
+        setNoteEdit(null)
+      })
+      .catch((e) => MessagePlugin.error((e as Error).message))
+  }
 
   useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
 
@@ -346,6 +361,18 @@ export default function Users() {
             },
             { colKey: 'gender', title: '性别', width: 70, cell: ({ row }) => row.gender === 1 ? <Tag theme="primary">男</Tag> : row.gender === 2 ? <Tag theme="danger">女</Tag> : <span style={{ color: 'var(--td-text-color-placeholder, #bbb)' }}>未知</span> },
             { colKey: 'uid', title: 'UID', width: 90, ellipsis: true, cell: ({ row }) => row.uid || '—' },
+            {
+              colKey: 'note',
+              title: '备注',
+              width: 140,
+              ellipsis: true,
+              cell: ({ row }) =>
+                row.note ? (
+                  <span title={row.note}>{row.note}</span>
+                ) : (
+                  <span style={{ color: 'var(--td-text-color-placeholder, #bbb)' }}>—</span>
+                ),
+            },
             { colKey: 'weightKg', title: '体重 kg' },
             { colKey: 'heightCm', title: '身高 cm' },
             { colKey: 'activityCount', title: '轨迹数', cell: ({ row }) => <Tag>{row.activityCount ?? 0}</Tag> },
@@ -357,11 +384,21 @@ export default function Users() {
             {
               colKey: 'op',
               title: '操作',
-              width: 90,
+              width: 130,
               cell: ({ row }) => (
-                <Button size="small" theme="primary" variant="text" onClick={() => navigate(`/users/${row.id}`)}>
-                  详情
-                </Button>
+                <>
+                  <Button size="small" theme="primary" variant="text" onClick={() => navigate(`/users/${row.id}`)}>
+                    详情
+                  </Button>
+                  <Button
+                    size="small"
+                    theme="primary"
+                    variant="text"
+                    onClick={() => setNoteEdit({ id: row.id, nickname: row.nickname || '微信用户', note: row.note || '' })}
+                  >
+                    备注
+                  </Button>
+                </>
               ),
             },
           ]}
@@ -382,6 +419,23 @@ export default function Users() {
           }}
         />
       </Card>
+
+      {/* 备注编辑弹窗：保存后本地更新行数据（不整页刷新） */}
+      <Dialog
+        header={`备注 — ${noteEdit?.nickname ?? ''}`}
+        visible={!!noteEdit}
+        width={480}
+        onClose={() => setNoteEdit(null)}
+        onConfirm={saveNote}
+      >
+        <Textarea
+          value={noteEdit?.note ?? ''}
+          maxlength={200}
+          placeholder="仅管理后台可见，最多 200 字"
+          autosize={{ minRows: 3, maxRows: 6 }}
+          onChange={(v) => setNoteEdit((s) => (s ? { ...s, note: String(v) } : s))}
+        />
+      </Dialog>
     </>
   )
 }

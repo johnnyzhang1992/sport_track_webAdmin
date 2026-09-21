@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Tag, Input, Button, Select, InputNumber } from 'tdesign-react'
+import { Card, Table, Tag, Input, Button, Select, InputNumber, DialogPlugin, MessagePlugin } from 'tdesign-react'
 import * as echarts from 'echarts'
 import type { TableSort } from 'tdesign-react'
 import { adminApi, type ActivityStatsRange, type ActivityStatsSection, type ActivityGeoStats } from '../api'
@@ -110,6 +110,29 @@ export default function Activities() {
 
   // 主题切换 → 图表重绘
   useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
+
+  /** 作废/恢复轨迹（管理端手动纠错；确认后改状态并刷新列表与概况） */
+  const changeStatus = (row: Activity, target: 'finished' | 'cancelled') => {
+    const cancelling = target === 'cancelled'
+    const dialog = DialogPlugin.confirm({
+      header: cancelling ? '作废该轨迹？' : '恢复该轨迹？',
+      body: cancelling
+        ? `${row.userNickname || '微信用户'} · ${typeLabel(row.type)} · ${fmtDateTime(row.startTime)}\n标记为无效后，用户端列表/统计/足迹不再计入（可随时恢复）。`
+        : `该轨迹将恢复为已完成，重新计入用户端列表/统计/足迹。`,
+      confirmBtn: { content: cancelling ? '作废' : '恢复', theme: cancelling ? 'danger' : 'primary' },
+      onConfirm: () => {
+        adminApi
+          .updateActivityStatus(row.id, target)
+          .then(() => {
+            MessagePlugin.success(cancelling ? '已作废' : '已恢复')
+            dialog.destroy()
+            load(page)
+            adminApi.activityStats().then(setStats).catch(() => {})
+          })
+          .catch((e) => MessagePlugin.error((e as Error).message))
+      },
+    })
+  }
 
   useEffect(() => {
     load(1)
@@ -435,11 +458,23 @@ export default function Activities() {
             {
               colKey: 'op',
               title: '操作',
-              width: 80,
+              width: 130,
               cell: ({ row }) => (
-                <Button size="small" theme="primary" variant="text" onClick={() => setDetailId(row.id)}>
-                  详情
-                </Button>
+                <>
+                  <Button size="small" theme="primary" variant="text" onClick={() => setDetailId(row.id)}>
+                    详情
+                  </Button>
+                  {row.status === 'finished' && (
+                    <Button size="small" theme="danger" variant="text" onClick={() => changeStatus(row, 'cancelled')}>
+                      作废
+                    </Button>
+                  )}
+                  {row.status === 'cancelled' && (
+                    <Button size="small" theme="primary" variant="text" onClick={() => changeStatus(row, 'finished')}>
+                      恢复
+                    </Button>
+                  )}
+                </>
               ),
             },
           ]}
