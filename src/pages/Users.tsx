@@ -17,6 +17,7 @@ interface User {
   createdAt: string
   lastLoginAt: string
   activityCount: number
+  finishedCount: number
   lastLoginIp: string
   lastLoginProvince: string
   lastLoginCity: string
@@ -375,7 +376,7 @@ export default function Users() {
             },
             { colKey: 'weightKg', title: '体重 kg' },
             { colKey: 'heightCm', title: '身高 cm' },
-            { colKey: 'activityCount', title: '轨迹数', cell: ({ row }) => <Tag>{row.activityCount ?? 0}</Tag> },
+            { colKey: 'activityCount', title: '轨迹数', cell: ({ row }: { row: User }) => <Tag>{row.finishedCount ?? 0}/{row.activityCount ?? 0}</Tag> },
             { colKey: 'lastLoginIp', title: '最后登录IP', width: 140, ellipsis: true, cell: ({ row }) => row.lastLoginIp || '—' },
             { colKey: 'lastLoginProvince', title: '省', width: 60, cell: ({ row }) => row.lastLoginProvince || '—' },
             { colKey: 'lastLoginCity', title: '市', width: 80, cell: ({ row }) => row.lastLoginCity || '—' },
