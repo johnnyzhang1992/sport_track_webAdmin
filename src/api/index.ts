@@ -1,5 +1,7 @@
 /** 管理后台 API（对接 sport_track_api /api/admin/*，管理员 token 隔离） */
 
+import { flattenMarkerPhotos } from '../utils/photo'
+
 const TOKEN_KEY = 'admin_token'
 const USERNAME_KEY = 'admin_username'
 // dev 走 vite 代理（相对路径）；生产用 VITE_API_BASE 绝对地址（独立子域跨域调用 api.historybook.cn）
@@ -259,8 +261,8 @@ export interface TopicItem {
   updatedAt: number
 }
 
-/** 专题图片上传（multipart；后端存 OSS，返回裸 URL） */
-export async function uploadTopicImage(file: File): Promise<{ url: string }> {
+/** 专题图片上传：url 是裸链（入库用它），previewUrl 带签名（私有桶，展示用） */
+export async function uploadTopicImage(file: File): Promise<{ url: string; previewUrl: string }> {
   const headers: Record<string, string> = {}
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
@@ -273,7 +275,7 @@ export async function uploadTopicImage(file: File): Promise<{ url: string }> {
   }
   const json = await res.json().catch(() => ({ success: false, message: '响应解析失败' }))
   if (!json.success) throw new Error(json.message || `上传失败(${res.status})`)
-  return json.data as { url: string }
+  return json.data as { url: string; previewUrl: string }
 }
 
 export const adminApi = {
@@ -281,7 +283,16 @@ export const adminApi = {
     request<{ token: string }>('/admin/login', { method: 'POST', body: { username, password } }),
   changePassword: (oldPassword: string, newPassword: string) =>
     request<null>('/admin/password', { method: 'PUT', body: { oldPassword, newPassword } }),
-  overview: () => request<{ userCount: number; activityCount: number; finishedCount: number; totalDistanceKm: number }>('/admin/overview'),
+  overview: () =>
+    request<{
+      userCount: number
+      activityCount: number
+      finishedCount: number
+      totalDistanceKm: number
+      footprintCount: number
+      footprintUserCount: number
+      footprintPhotoCount: number
+    }>('/admin/overview'),
   // 专题（官方信息页）
   topics: () => request<TopicItem[]>('/admin/topics'),
   createTopic: (body: Partial<TopicItem>) => request<TopicItem>('/admin/topics', { method: 'POST', body }),
@@ -291,9 +302,9 @@ export const adminApi = {
   users: (page = 1, pageSize = 20, keyword = '', sortBy = '', order = '') =>
     request<{ total: number; page: number; items: unknown[] }>(`/admin/users?page=${page}&pageSize=${pageSize}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}${sortBy ? `&sortBy=${sortBy}` : ''}${order ? `&order=${order}` : ''}`),
   adminStats: () =>
-    request<{ today: { newUsers: number; newActivities: number; uv: number; pv: number }; week: { newUsers: number; newActivities: number; uv: number; pv: number }; month: { newUsers: number; newActivities: number; uv: number; pv: number } }>('/admin/stats'),
+    request<{ today: AdminStatsCell; week: AdminStatsCell; month: AdminStatsCell }>('/admin/stats'),
   adminTrend: (type = 'day') =>
-    request<{ type: string; data: { date: string; newUsers: number; newActivities: number }[] }>(`/admin/trend?type=${type}`),
+    request<{ type: string; data: AdminTrendPoint[] }>(`/admin/trend?type=${type}`),
   regionStats: () =>
     request<{ provinces: { name: string; count: number }[]; cities: { name: string; province: string; count: number }[] }>('/admin/region-stats'),
   activityStats: () =>
@@ -311,6 +322,30 @@ export const adminApi = {
       `/admin/activities?page=${page}&pageSize=${pageSize}${qs ? `&${qs}` : ''}`,
     )
   },
+  // 足迹记录（管理端只读 + 违规删除）：列表不下发照片，详情弹窗按需取
+  footprintRecords: (page = 1, pageSize = 20, filters: Record<string, string> = {}) => {
+    const qs = Object.entries(filters)
+      .filter(([, v]) => v !== '' && v != null)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join('&')
+    return request<{ total: number; page: number; pageSize: number; items: FootprintRecordItem[] }>(
+      `/admin/footprint-records?page=${page}&pageSize=${pageSize}${qs ? `&${qs}` : ''}`,
+    )
+  },
+  footprintDetail: (id: string) => request<FootprintRecordDetail>(`/admin/footprint-records/${id}`),
+  deleteFootprintRecord: (id: string) => request<null>(`/admin/footprint-records/${id}`, { method: 'DELETE' }),
+  // 足迹数据概况：五档一次给全，前端切档不再请求；传 userId 则收口到单个用户（用户详情页用）
+  footprintStats: (userId?: string) =>
+    request<Record<FootprintStatsRange, FootprintStatsCell>>(
+      `/admin/footprint-stats${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`,
+    ),
+  // 足迹省份分布（含城市明细）：档位非法时后端回落成累计
+  footprintGeoStats: (range: FootprintStatsRange = 'all') =>
+    request<FootprintGeoStats>(`/admin/footprint-geo-stats?range=${range}`),
+  footprintTrend: (days = 30) =>
+    request<{ days: number; data: { date: string; count: number; photos: number }[] }>(
+      `/admin/footprint-trend?days=${days}`,
+    ),
   userDetail: (id: string) => request<UserDetail>(`/admin/users/${id}`),
   userLoginLogs: (id: string, page = 1, pageSize = 20, startDate?: string, endDate?: string) => {
     let url = `/admin/users/${id}/login-logs?page=${page}&pageSize=${pageSize}`
@@ -321,6 +356,11 @@ export const adminApi = {
   userLoginStats: (id: string) =>
     request<{ last7Days: number; last30Days: number; last180Days: number; total: number }>(`/admin/users/${id}/login-stats`),
   activityDetail: (id: string) => request<ActivityDetail>(`/admin/activities/${id}`),
+  // 预览列按需取整组照片：列表只给 photoCount + 签名首图，一页 100 行 × 多图全签名是白烧 CPU
+  activityPhotos: (id: string) =>
+    request<ActivityDetail>(`/admin/activities/${id}`).then((d) => flattenMarkerPhotos(d.markers)),
+  footprintPhotos: (id: string) =>
+    request<FootprintRecordDetail>(`/admin/footprint-records/${id}`).then((d) => d.photos),
   // 修改轨迹状态（管理端纠错：finished↔cancelled 互转，不提供删除）
   updateActivityStatus: (id: string, status: 'finished' | 'cancelled') =>
     request<{ id: string; status: string; changed: boolean }>(`/admin/activities/${id}/status`, {
@@ -355,4 +395,88 @@ export interface LoginLogItem {
   sdkVersion: string
   appVersion: string
   createdAt: string
+}
+
+/** /admin/stats 的每档计数（今日/本周/本月同构） */
+export interface AdminStatsCell {
+  newUsers: number
+  newActivities: number
+  newFootprints: number
+  uv: number
+  pv: number
+}
+
+/** /admin/trend 的每个时间桶 */
+export interface AdminTrendPoint {
+  date: string
+  newUsers: number
+  newActivities: number
+  newFootprints: number
+}
+
+/** 足迹列表项（不下发照片数组，photoCount 计数 + coverPhoto 签名首图给缩略图） */
+export interface FootprintRecordItem {
+  id: string
+  userId: string
+  userNickname: string
+  userUid: string
+  title: string
+  visitDate: string
+  placeName: string
+  address: string
+  province: string
+  city: string
+  people: string[]
+  peopleCount: number
+  photoCount: number
+  coverPhoto: string
+  createdAt: string
+}
+
+/** 足迹详情（含照片签名 URL，列表接口不下发） */
+export interface FootprintRecordDetail {
+  id: string
+  userId: string
+  userNickname: string
+  userUid: string
+  visitDate: string
+  title: string
+  people: string[]
+  description: string
+  location: {
+    name: string
+    address: string
+    province: string
+    city: string
+    adcode: number
+    latitude: number
+    longitude: number
+  }
+  photos: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** 足迹概况档位（与后端 /admin/footprint-stats 的 key 同名） */
+export type FootprintStatsRange = 'today' | 'week' | 'month' | 'year' | 'all'
+
+/** 足迹概况单档指标（时间一律按记录创建时间，不是用户手填的到访日期） */
+export interface FootprintStatsCell {
+  total: number
+  userCount: number
+  provinceCount: number
+  cityCount: number
+  photoCount: number
+  withPhotoCount: number
+}
+
+/** 足迹省份分布（range 原样回显；空省市记录不在 total 里） */
+export interface FootprintGeoStats {
+  range: string
+  total: number
+  provinces: {
+    province: string
+    count: number
+    cities: { city: string; count: number }[]
+  }[]
 }

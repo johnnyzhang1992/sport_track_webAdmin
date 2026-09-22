@@ -170,11 +170,12 @@ export default function Topics() {
     }
     setUploading(target)
     try {
-      const { url } = await uploadTopicImage(file)
+      // 表单里放签名链（私有桶裸链不显示）；保存时后端会剥回裸链再入库
+      const { previewUrl } = await uploadTopicImage(file)
       setForm((f) => {
         if (!f) return f
-        if (target === 'cover') return { ...f, coverUrl: url }
-        return { ...f, content: `${f.content}\n\n![${file.name}](${url})` }
+        if (target === 'cover') return { ...f, coverUrl: previewUrl }
+        return { ...f, content: `${f.content}\n\n![${file.name}](${previewUrl})` }
       })
       MessagePlugin.success('已上传')
     } catch (e) {

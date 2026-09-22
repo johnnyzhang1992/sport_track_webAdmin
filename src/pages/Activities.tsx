@@ -7,6 +7,8 @@ import { adminApi, type ActivityStatsRange, type ActivityStatsSection, type Acti
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
 import FootprintMap from '../components/FootprintMap'
+import RangeButtons from '../components/RangeButtons'
+import PhotoCell from '../components/PhotoCell'
 import { chartColors, onThemeChange } from '../utils/theme'
 
 interface Activity {
@@ -23,6 +25,8 @@ interface Activity {
   startProvince: string
   startCity: string
   startTime: number
+  photoCount: number
+  coverPhoto: string
 }
 
 const TYPE_OPTIONS = [
@@ -53,30 +57,6 @@ const STAT_RANGES: { key: ActivityStatsRange; label: string }[] = [
 ]
 
 const kmNum = (m: number) => (m / 1000).toFixed(2).replace(/\.?0+$/, '')
-
-/** range 切换按钮组（概况/地图共用样式，对齐用户详情页） */
-function RangeButtons({ value, onChange }: { value: ActivityStatsRange; onChange: (v: ActivityStatsRange) => void }) {
-  return (
-    <div style={{ display: 'flex', gap: 8 }}>
-      {STAT_RANGES.map((r) => (
-        <div
-          key={r.key}
-          onClick={() => onChange(r.key)}
-          style={{
-            padding: '4px 14px',
-            borderRadius: 6,
-            fontSize: 13,
-            cursor: 'pointer',
-            background: value === r.key ? '#0052d9' : 'var(--td-bg-color-secondarycontainer, #f2f3f5)',
-            color: value === r.key ? '#fff' : 'var(--td-text-color-secondary, #4e5969)',
-          }}
-        >
-          {r.label}
-        </div>
-      ))}
-    </div>
-  )
-}
 
 export default function Activities() {
   const navigate = useNavigate()
@@ -283,7 +263,7 @@ export default function Activities() {
       {/* 统一时间范围筛选（数据概况 / 运动类型统计 / 轨迹省份分布 三处联动） */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: 12, paddingRight: 24 }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--td-text-color-primary, #1f2329)' }}>时间范围</span>
-        <RangeButtons value={range} onChange={setRange} />
+        <RangeButtons options={STAT_RANGES} value={range} onChange={setRange} />
       </div>
       {/* 轨迹数据概况 */}
       <Card
@@ -454,6 +434,12 @@ export default function Activities() {
             { colKey: 'distance', title: '距离 km', sorter: true, cell: ({ row }) => fmtKm(row.distance || 0) },
             { colKey: 'duration', title: '时长', sorter: true, cell: ({ row }) => fmtDuration(row.duration || 0) },
             { colKey: 'calories', title: '千卡' },
+            {
+              colKey: 'photos',
+              title: '图片',
+              width: 180,
+              cell: ({ row }) => <PhotoCell row={row} load={adminApi.activityPhotos} />,
+            },
             { colKey: 'startTime', title: '开始时间', cell: ({ row }) => fmtDateTime(row.startTime) },
             {
               colKey: 'op',

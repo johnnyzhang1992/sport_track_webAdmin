@@ -5,9 +5,12 @@ import type { TableSort } from 'tdesign-react'
 import { ArrowLeft, MapPin, Trophy } from '@phosphor-icons/react'
 import * as echarts from 'echarts'
 import { chartColors, onThemeChange } from '../utils/theme'
-import { adminApi, type UserDetail as UserDetailData, type BestRow, type LoginLogItem } from '../api'
+import { adminApi, type UserDetail as UserDetailData, type BestRow, type LoginLogItem, type FootprintRecordItem, type FootprintStatsCell, type FootprintStatsRange } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
+import FootprintDetailDialog from '../components/FootprintDetailDialog'
+import FootprintStatsPanel from '../components/FootprintStatsPanel'
+import PhotoCell from '../components/PhotoCell'
 import FootprintMap from '../components/FootprintMap'
 
 const RANGES = [
@@ -59,6 +62,8 @@ interface ActivityRow {
   calories: number
   elevationGain: number
   startTime: number
+  photoCount: number
+  coverPhoto: string
 }
 
 export default function UserDetail() {
@@ -67,7 +72,7 @@ export default function UserDetail() {
   const [detail, setDetail] = useState<UserDetailData | null>(null)
   const [range, setRange] = useState<(typeof RANGES)[number]['key']>('today')
   const [detailId, setDetailId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('activities') // 'activities' | 'login'
+  const [activeTab, setActiveTab] = useState('activities') // 'activities' | 'login' | 'footprints'
   const [selectedProvince, setSelectedProvince] = useState<string | null>(null) // 地图下钻选中的省份
 
   // 用户轨迹列表（复用轨迹列表接口，按 userId 过滤）
@@ -91,6 +96,18 @@ export default function UserDetail() {
 
   // 登录统计
   const [loginStats, setLoginStats] = useState<{ last7Days: number; last30Days: number; last180Days: number; total: number } | null>(null)
+
+  // 足迹记录（复用 /admin/footprint-records 列表接口按 userId 过滤，切到该 Tab 才取数）
+  const [fps, setFps] = useState<FootprintRecordItem[]>([])
+  const [fpTotal, setFpTotal] = useState(0)
+  const [fpPage, setFpPage] = useState(1)
+  const [fpLoading, setFpLoading] = useState(false)
+  const [fpPageSize, setFpPageSize] = useState(10)
+  const [fpLoadedId, setFpLoadedId] = useState('') // 已取过足迹的用户 id，避免来回切 Tab 重复请求
+  const [fpDetailId, setFpDetailId] = useState<string | null>(null)
+  // 个人足迹概况（同一套五档聚合加 userId 过滤）；时间档归足迹 Tab 自己管，与轨迹 Tab 那组不共用
+  const [fpStats, setFpStats] = useState<Record<FootprintStatsRange, FootprintStatsCell> | null>(null)
+  const [fpRange, setFpRange] = useState<FootprintStatsRange>('all')
 
   useEffect(() => {
     adminApi
@@ -146,6 +163,42 @@ export default function UserDetail() {
   useEffect(() => {
     if (activeTab === 'login') {
       adminApi.userLoginStats(id).then(setLoginStats).catch(() => {})
+    }
+  }, [id, activeTab])
+
+  const loadFps = (p: number, pageSize?: number) => {
+    setFpLoading(true)
+    adminApi
+      .footprintRecords(p, pageSize ?? fpPageSize, { userId: id })
+      .then((d) => {
+        setFps(d.items)
+        setFpTotal(d.total)
+      })
+      .catch(() => setFps([]))
+      .finally(() => setFpLoading(false))
+  }
+
+  const loadFpStats = () => {
+    adminApi
+      .footprintStats(id)
+      .then(setFpStats)
+      .catch(() => {})
+  }
+
+  // 换用户先清掉上一个用户的足迹（Tab 懒加载下不清会串数据）
+  useEffect(() => {
+    setFps([])
+    setFpTotal(0)
+    setFpPage(1)
+    setFpLoadedId('')
+    setFpStats(null)
+  }, [id])
+
+  useEffect(() => {
+    if (activeTab === 'footprints' && fpLoadedId !== id) {
+      setFpLoadedId(id)
+      loadFps(1)
+      loadFpStats()
     }
   }, [id, activeTab])
 
@@ -273,7 +326,7 @@ export default function UserDetail() {
         </div>
       </Card>
 
-      {/* Tab 切换：轨迹详情 / 登录记录 */}
+      {/* Tab 切换：轨迹记录 / 登录记录 / 足迹记录 */}
       <Tabs value={activeTab} onChange={(v) => setActiveTab(v as string)} style={{ marginTop: 16 }}>
         <Tabs.TabPanel value="activities" label={`轨迹记录（${actTotal}）`}>
           {/* 统一时间范围筛选（数据概况 / 运动类型统计 两处联动） */}
@@ -458,6 +511,12 @@ export default function UserDetail() {
                 { colKey: 'distance', title: '距离 km', sorter: true, cell: ({ row }) => fmtKm(row.distance || 0) },
                 { colKey: 'duration', title: '时长', sorter: true, cell: ({ row }) => fmtDuration(row.duration || 0) },
                 { colKey: 'calories', title: '千卡' },
+                {
+                  colKey: 'photos',
+                  title: '图片',
+                  width: 170,
+                  cell: ({ row }) => <PhotoCell row={row} load={adminApi.activityPhotos} />,
+                },
                 { colKey: 'startTime', title: '开始时间', cell: ({ row }) => fmtDateTime(row.startTime) },
                 {
                   colKey: 'op',
@@ -514,7 +573,7 @@ export default function UserDetail() {
             <Space style={{ marginBottom: 12 }}>
               <DateRangePicker
                 placeholder={['开始日期', '结束日期']}
-                value={logDateRange ? [new Date(logDateRange[0]), new Date(logDateRange[1])] : undefined}
+                value={logDateRange ? [new Date(logDateRange[0]), new Date(logDateRange[1])] : []}
                 onChange={(v) => {
                   if (!v || !Array.isArray(v) || v.length !== 2 || !v[0] || !v[1]) {
                     setLogDateRange(null)
@@ -639,9 +698,81 @@ export default function UserDetail() {
             />
           </Card>
         </Tabs.TabPanel>
+
+        <Tabs.TabPanel value="footprints" label={fpLoadedId === id ? `足迹记录（${fpTotal}）` : '足迹记录'}>
+          <div style={{ marginTop: 16 }}>
+            <FootprintStatsPanel stats={fpStats} range={fpRange} onRangeChange={setFpRange} title="该用户足迹概况" />
+          </div>
+          <Card className="page-card">
+            <Table
+              data={fps}
+              rowKey="id"
+              loading={fpLoading}
+              columns={[
+                { colKey: 'visitDate', title: '到访日期', width: 120 },
+                { colKey: 'title', title: '标题', ellipsis: true },
+                {
+                  colKey: 'placeName',
+                  title: '地点',
+                  ellipsis: true,
+                  cell: ({ row }) => (
+                    <span title={row.address || row.placeName}>{row.placeName || row.address || '—'}</span>
+                  ),
+                },
+                { colKey: 'province', title: '省市', width: 130, cell: ({ row }) => (row.province ? `${row.province} ${row.city}` : '—') },
+                {
+                  colKey: 'peopleCount',
+                  title: '同行',
+                  width: 90,
+                  cell: ({ row }) => (row.peopleCount ? <span title={row.people.join('、')}>{row.peopleCount} 人</span> : '—'),
+                },
+                {
+                  colKey: 'photos',
+                  title: '图片',
+                  width: 170,
+                  cell: ({ row }) => <PhotoCell row={row} load={adminApi.footprintPhotos} />,
+                },
+                { colKey: 'createdAt', title: '记录时间', width: 170, cell: ({ row }) => fmtDateTime(row.createdAt) },
+                {
+                  colKey: 'op',
+                  title: '操作',
+                  width: 80,
+                  cell: ({ row }) => (
+                    <Button size="small" theme="primary" variant="text" onClick={() => setFpDetailId(row.id)}>
+                      详情
+                    </Button>
+                  ),
+                },
+              ]}
+              pagination={{
+                total: fpTotal,
+                current: fpPage,
+                pageSize: fpPageSize,
+                showJumper: true,
+                onChange: (info) => {
+                  setFpPage(info.current)
+                  loadFps(info.current)
+                },
+                onPageSizeChange: (size) => {
+                  setFpPageSize(size)
+                  setFpPage(1)
+                  loadFps(1, size)
+                },
+              }}
+            />
+          </Card>
+        </Tabs.TabPanel>
       </Tabs>
 
       <ActivityDetailDialog id={detailId} onClose={() => setDetailId(null)} />
+      <FootprintDetailDialog
+        id={fpDetailId}
+        onClose={() => setFpDetailId(null)}
+        onDeleted={() => {
+          loadFps(fpPage)
+          loadFpStats()
+        }}
+      />
     </div>
   )
 }

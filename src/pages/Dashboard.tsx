@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Card, Table } from 'tdesign-react'
 import * as echarts from 'echarts'
-import { Users as UsersIcon, MapTrifold, CheckCircle, Ruler, UserPlus, Eye } from '@phosphor-icons/react'
-import { adminApi } from '../api'
+import { Users as UsersIcon, MapTrifold, CheckCircle, Ruler, UserPlus, Eye, Footprints, UsersFour, Camera } from '@phosphor-icons/react'
+import { adminApi, type AdminStatsCell } from '../api'
 import FootprintMap from '../components/FootprintMap'
 import { chartColors, onThemeChange } from '../utils/theme'
 
@@ -11,11 +11,14 @@ interface Overview {
   activityCount: number
   finishedCount: number
   totalDistanceKm: number
+  footprintCount: number
+  footprintUserCount: number
+  footprintPhotoCount: number
 }
 
 export default function Dashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
-  const [stats, setStats] = useState<{ [k: string]: { newUsers: number; newActivities: number; uv: number; pv: number } } | null>(null)
+  const [stats, setStats] = useState<{ [k: string]: AdminStatsCell } | null>(null)
   const [trendType, setTrendType] = useState('day')
   const [themeV, setThemeV] = useState(0) // 主题切换计数（触发图表重绘）
   const [region, setRegion] = useState<{ provinces: { name: string; count: number }[]; cities: { name: string; province: string; count: number }[] } | null>(null)
@@ -52,7 +55,7 @@ export default function Dashboard() {
         chart.current.setOption({
           textStyle: { color: c.text },
           tooltip: { trigger: 'axis' },
-          legend: { data: ['新增用户', '新增轨迹'], top: 0, itemWidth: 14, itemHeight: 10, textStyle: { color: c.text } },
+          legend: { data: ['新增用户', '新增轨迹', '新增足迹'], top: 0, itemWidth: 14, itemHeight: 10, textStyle: { color: c.text } },
           grid: { left: 40, right: 16, top: 52, bottom: 28 }, // top 让出 legend 空间避免重叠
           xAxis: {
             type: 'category',
@@ -64,6 +67,7 @@ export default function Dashboard() {
           series: [
             { name: '新增用户', type: 'bar', data: d.data.map((x) => x.newUsers), itemStyle: { color: '#0052d9', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 18 },
             { name: '新增轨迹', type: 'bar', data: d.data.map((x) => x.newActivities), itemStyle: { color: '#00a870', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 18 },
+            { name: '新增足迹', type: 'bar', data: d.data.map((x) => x.newFootprints), itemStyle: { color: '#ed7b2f', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 18 },
           ],
         })
       })
@@ -78,6 +82,9 @@ export default function Dashboard() {
     { title: '轨迹总数', value: overview?.activityCount ?? 0, Icon: MapTrifold, tint: '#00a870' },
     { title: '已完成轨迹', value: overview?.finishedCount ?? 0, Icon: CheckCircle, tint: '#e37318' },
     { title: '总距离 (km)', value: overview?.totalDistanceKm ?? 0, Icon: Ruler, tint: '#834ec2' },
+    { title: '足迹条数', value: overview?.footprintCount ?? 0, Icon: Footprints, tint: '#0594fa' },
+    { title: '记录足迹用户', value: overview?.footprintUserCount ?? 0, Icon: UsersFour, tint: '#d4a107' },
+    { title: '足迹照片', value: overview?.footprintPhotoCount ?? 0, Icon: Camera, tint: '#e83a6a' },
   ]
 
   const RANGES = [
@@ -110,10 +117,11 @@ export default function Dashboard() {
       {/* 时间维度：今日/本周/本月 指标（metric-card 风格，按周期着色） */}
       <div className="metric-grid" style={{ marginTop: 16 }}>
         {RANGES.flatMap((r) => {
-          const s = stats?.[r.key] ?? { newUsers: 0, newActivities: 0, uv: 0, pv: 0 }
+          const s = stats?.[r.key] ?? { newUsers: 0, newActivities: 0, newFootprints: 0, uv: 0, pv: 0 }
           const cells = [
             { key: `${r.key}-nu`, label: `${r.label}新增用户`, value: s.newUsers, Icon: UserPlus },
             { key: `${r.key}-na`, label: `${r.label}新增轨迹`, value: s.newActivities, Icon: MapTrifold },
+            { key: `${r.key}-nf`, label: `${r.label}新增足迹`, value: s.newFootprints, Icon: Footprints },
             { key: `${r.key}-uv`, label: `${r.label}登录UV`, value: s.uv, Icon: UsersIcon },
             { key: `${r.key}-pv`, label: `${r.label}登录PV`, value: s.pv, Icon: Eye },
           ]

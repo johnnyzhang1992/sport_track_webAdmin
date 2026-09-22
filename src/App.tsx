@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import UserDetail from './pages/UserDetail'
 import Activities from './pages/Activities'
+import Footprints from './pages/Footprints'
 import Leaderboard from './pages/Leaderboard'
 import Topics from './pages/Topics'
 import { getToken, setToken, saveUsername, adminApi } from './api'
@@ -96,6 +97,7 @@ export default function App() {
                 <Route path="/users" element={<Users />} />
                 <Route path="/users/:id" element={<UserDetail />} />
                 <Route path="/activities" element={<Activities />} />
+                <Route path="/footprints" element={<Footprints />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/topics" element={<Topics />} />
               </Routes>
