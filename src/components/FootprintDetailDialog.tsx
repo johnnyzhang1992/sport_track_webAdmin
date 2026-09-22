@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Dialog, DialogPlugin, Tag, Loading, MessagePlugin, Button } from 'tdesign-react'
 import { adminApi, type FootprintRecordDetail } from '../api'
+import { footprintCategoryLabel } from '../utils/footprintCategory'
 
 interface Props {
   id: string | null
@@ -52,6 +53,7 @@ export default function FootprintDetailDialog({ id, onClose, onDeleted }: Props)
         { label: '用户', value: detail.userNickname || '微信用户' },
         { label: 'UID', value: detail.userUid || '—' },
         { label: '到访日期', value: detail.visitDate },
+        { label: '分类', value: footprintCategoryLabel(detail.category) || '未分类' },
         { label: '同行的人', value: detail.people.length ? detail.people.join('、') : '—' },
         { label: '省份', value: detail.location.province || '—' },
         { label: '城市', value: detail.location.city || '—' },

@@ -422,6 +422,7 @@ export interface FootprintRecordItem {
   userUid: string
   title: string
   visitDate: string
+  category: string
   placeName: string
   address: string
   province: string
@@ -441,6 +442,7 @@ export interface FootprintRecordDetail {
   userUid: string
   visitDate: string
   title: string
+  category: string
   people: string[]
   description: string
   location: {

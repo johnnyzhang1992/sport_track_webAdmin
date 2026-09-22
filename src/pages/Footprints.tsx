@@ -10,6 +10,7 @@ import {
   type FootprintStatsRange,
 } from '../api'
 import { fmtDateTime } from '../utils/format'
+import { footprintCategoryLabel } from '../utils/footprintCategory'
 import { chartColors, onThemeChange } from '../utils/theme'
 import FootprintDetailDialog from '../components/FootprintDetailDialog'
 import FootprintStatsPanel from '../components/FootprintStatsPanel'
@@ -259,6 +260,7 @@ export default function Footprints() {
               ),
             },
             { colKey: 'province', title: '省市', width: 130, cell: ({ row }) => (row.province ? `${row.province} ${row.city}` : '—') },
+            { colKey: 'category', title: '分类', width: 100, cell: ({ row }) => footprintCategoryLabel(row.category) || '未分类' },
             {
               colKey: 'peopleCount',
               title: '同行',
