@@ -440,6 +440,8 @@ export interface LoginLogItem {
 export interface AdminStatsCell {
   newUsers: number
   newActivities: number
+  /** newActivities 里 status=finished 的子集（概览页「新增轨迹」要显示 已完成/总） */
+  finishedActivities: number
   newFootprints: number
   uv: number
   pv: number

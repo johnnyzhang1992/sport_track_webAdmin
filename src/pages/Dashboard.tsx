@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Card, Table } from 'tdesign-react'
 import * as echarts from 'echarts'
-import { Users as UsersIcon, MapTrifold, CheckCircle, Ruler, UserPlus, Eye, Footprints, UsersFour, Camera } from '@phosphor-icons/react'
+import { Users as UsersIcon, MapTrifold, Ruler, UserPlus, Footprints, Camera } from '@phosphor-icons/react'
 import { adminApi, type AdminStatsCell } from '../api'
 import FootprintMap from '../components/FootprintMap'
 import { chartColors, onThemeChange } from '../utils/theme'
@@ -15,6 +15,46 @@ interface Overview {
   footprintUserCount: number
   footprintPhotoCount: number
 }
+
+const EMPTY_CELL: AdminStatsCell = {
+  newUsers: 0,
+  newActivities: 0,
+  finishedActivities: 0,
+  newFootprints: 0,
+  uv: 0,
+  pv: 0,
+}
+
+/** 一张指标卡：主值 + 标签 + 可选副行（副行装 PV·UV、完成率这类次要口径） */
+function Metric(props: {
+  value: ReactNode
+  label: string
+  sub?: string
+  Icon: typeof UsersIcon
+  tint: string
+}) {
+  const { value, label, sub, Icon, tint } = props
+  return (
+    <div className="metric-card">
+      <div className="metric-icon" style={{ color: tint, background: `${tint}14` }}>
+        <Icon size={16} weight="duotone" />
+      </div>
+      <div className="metric-body">
+        <div className="metric-value">{value}</div>
+        <div className="metric-label">{label}</div>
+        {sub ? <div className="metric-sub">{sub}</div> : null}
+      </div>
+    </div>
+  )
+}
+
+/** 比值型主值：分母弱化，免得和「两个独立指标」混看 */
+const Ratio = ({ a, b }: { a: number; b: number }) => (
+  <>
+    {a.toLocaleString()}
+    <span className="metric-value-dim"> / {b.toLocaleString()}</span>
+  </>
+)
 
 export default function Dashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
@@ -77,21 +117,13 @@ export default function Dashboard() {
     }
   }, [trendType, themeV])
 
-  const overviewItems = [
-    { title: '用户总数', value: overview?.userCount ?? 0, Icon: UsersIcon, tint: '#0052d9' },
-    { title: '轨迹总数', value: overview?.activityCount ?? 0, Icon: MapTrifold, tint: '#00a870' },
-    { title: '已完成轨迹', value: overview?.finishedCount ?? 0, Icon: CheckCircle, tint: '#e37318' },
-    { title: '总距离 (km)', value: overview?.totalDistanceKm ?? 0, Icon: Ruler, tint: '#834ec2' },
-    { title: '足迹条数', value: overview?.footprintCount ?? 0, Icon: Footprints, tint: '#0594fa' },
-    { title: '记录足迹用户', value: overview?.footprintUserCount ?? 0, Icon: UsersFour, tint: '#d4a107' },
-    { title: '足迹照片', value: overview?.footprintPhotoCount ?? 0, Icon: Camera, tint: '#e83a6a' },
-  ]
-
   const RANGES = [
     { key: 'today', label: '今日', tint: '#0052d9' },
     { key: 'week', label: '本周', tint: '#00a870' },
     { key: 'month', label: '本月', tint: '#e37318' },
   ]
+  const cell = (k: string) => stats?.[k] ?? EMPTY_CELL
+  const n = (v?: number) => (v ?? 0).toLocaleString()
 
   const regionCols = (col: 'provinces' | 'cities') => [
     { colKey: 'name', title: col === 'provinces' ? '省份' : '城市' },
@@ -100,43 +132,72 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* 一、总数：四张卡，比值直接做主值，不再为「已完成」单开一张 */}
+      <div className="dash-section-title">总数</div>
       <div className="metric-grid">
-        {overviewItems.map((it) => (
-          <div className="metric-card" key={it.title}>
-            <div className="metric-icon" style={{ color: it.tint, background: `${it.tint}14` }}>
-              <it.Icon size={20} weight="duotone" />
-            </div>
-            <div className="metric-body">
-              <div className="metric-value">{it.value.toLocaleString()}</div>
-              <div className="metric-label">{it.title}</div>
-            </div>
-          </div>
-        ))}
+        <Metric value={n(overview?.userCount)} label="用户总数" Icon={UsersIcon} tint="#0052d9" />
+        <Metric
+          value={<Ratio a={overview?.finishedCount ?? 0} b={overview?.activityCount ?? 0} />}
+          label="轨迹总数（已完成 / 总）"
+          Icon={MapTrifold}
+          tint="#00a870"
+        />
+        <Metric value={n(overview?.totalDistanceKm)} label="轨迹总距离 (km)" Icon={Ruler} tint="#834ec2" />
+        <Metric value={n(overview?.footprintCount)} label="足迹总数" Icon={Footprints} tint="#0594fa" />
       </div>
 
-      {/* 时间维度：今日/本周/本月 指标（metric-card 风格，按周期着色） */}
-      <div className="metric-grid" style={{ marginTop: 16 }}>
-        {RANGES.flatMap((r) => {
-          const s = stats?.[r.key] ?? { newUsers: 0, newActivities: 0, newFootprints: 0, uv: 0, pv: 0 }
-          const cells = [
-            { key: `${r.key}-nu`, label: `${r.label}新增用户`, value: s.newUsers, Icon: UserPlus },
-            { key: `${r.key}-na`, label: `${r.label}新增轨迹`, value: s.newActivities, Icon: MapTrifold },
-            { key: `${r.key}-nf`, label: `${r.label}新增足迹`, value: s.newFootprints, Icon: Footprints },
-            { key: `${r.key}-uv`, label: `${r.label}登录UV`, value: s.uv, Icon: UsersIcon },
-            { key: `${r.key}-pv`, label: `${r.label}登录PV`, value: s.pv, Icon: Eye },
-          ]
-          return cells.map((it) => (
-            <div className="metric-card" key={it.key}>
-              <div className="metric-icon" style={{ color: r.tint, background: `${r.tint}14` }}>
-                <it.Icon size={20} weight="duotone" />
-              </div>
-              <div className="metric-body">
-                <div className="metric-value">{it.value.toLocaleString()}</div>
-                <div className="metric-label">{it.label}</div>
-              </div>
-            </div>
-          ))
+      {/* 二、用户：PV 与 UV 合成一行，不再各占一张卡 */}
+      <div className="dash-section-title">用户</div>
+      <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {RANGES.map((r) => {
+          const s = cell(r.key)
+          return (
+            <Metric
+              key={r.key}
+              value={n(s.newUsers)}
+              label={`${r.label}新增用户`}
+              sub={`登录 PV ${n(s.pv)} · UV ${n(s.uv)}`}
+              Icon={UserPlus}
+              tint={r.tint}
+            />
+          )
         })}
+      </div>
+
+      {/* 三、轨迹：主值就是 已完成 / 总，完成率放副行 */}
+      <div className="dash-section-title">轨迹</div>
+      <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {RANGES.map((r) => {
+          const s = cell(r.key)
+          return (
+            <Metric
+              key={r.key}
+              value={<Ratio a={s.finishedActivities} b={s.newActivities} />}
+              label={`${r.label}新增轨迹（已完成 / 总）`}
+              sub={
+                s.newActivities
+                  ? `完成率 ${((s.finishedActivities / s.newActivities) * 100).toFixed(1)}%`
+                  : '该周期还没有新增轨迹'
+              }
+              Icon={MapTrifold}
+              tint={r.tint}
+            />
+          )
+        })}
+      </div>
+
+      {/* 四、足迹：三档新增 + 一张累计卡（原来「记录足迹用户」「足迹照片」两张卡挪到这里） */}
+      <div className="dash-section-title">足迹</div>
+      <div className="metric-grid">
+        {RANGES.map((r) => (
+          <Metric key={r.key} value={n(cell(r.key).newFootprints)} label={`${r.label}新增足迹`} Icon={Footprints} tint={r.tint} />
+        ))}
+        <Metric
+          value={<Ratio a={overview?.footprintUserCount ?? 0} b={overview?.footprintPhotoCount ?? 0} />}
+          label="累计记录用户 / 照片"
+          Icon={Camera}
+          tint="#d4a107"
+        />
       </div>
 
       {/* 数据趋势（维度切换：天/周/月/年） */}

@@ -93,36 +93,73 @@ body {
 .metric-card {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   background: var(--td-bg-color-container, #fff);
   border: 1px solid var(--td-component-stroke, #eef0f3);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 10px;
+  padding: 12px 14px;
   transition: border-color 0.2s;
 }
 .metric-card:hover {
   border-color: #d6dce4;
 }
 .metric-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 .metric-value {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--td-text-color-primary, #1f2329);
-  line-height: 1.2;
+  line-height: 1.25;
   font-variant-numeric: tabular-nums;
 }
 .metric-label {
+  font-size: 12px;
+  color: #8a93a6;
+  margin-top: 1px;
+}
+/* 概览页分区：一个维度一行 —— 小标题 + 该维度下的 今日/本周/本月 卡 */
+.dash-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
+  font-weight: 600;
+  color: var(--td-text-color-secondary, #4e5969);
+  margin: 16px 0 8px;
+}
+.dash-section-title:first-child {
+  margin-top: 0;
+}
+/* 概览页的卡变矮了，行/列间距跟着收一档；其他页的 .metric-grid 不受影响 */
+.dash-section-title + .metric-grid {
+  gap: 12px;
+}
+.dash-section-title::before {
+  content: '';
+  width: 3px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--td-brand-color, #0052d9);
+}
+/* 卡内第三行：把 PV/UV、完成率这类次要口径收进来，不再各占一张卡 */
+.metric-sub {
+  font-size: 11px;
   color: #8a93a6;
   margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+/* 「已完成 / 总数」的分母：弱化到主值的 2/3，一眼看出是比值不是两个指标 */
+.metric-value-dim {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8a93a6;
 }
 
 /* 登录页 */
