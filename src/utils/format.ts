@@ -35,8 +35,10 @@ export function fmtDuration(sec: number): string {
 /** 配速（秒/公里）→ 6'05" */
 export function fmtPace(secPerKm: number | null | undefined): string {
   if (secPerKm == null || !Number.isFinite(secPerKm) || secPerKm <= 0) return '—'
-  const m = Math.floor(secPerKm / 60)
-  const s = Math.round(secPerKm % 60)
+  // 先整体取整再拆分秒：先 floor 分、再 round 秒时 59.5~59.99 会舍成 60 而不是进位（10'60"）
+  const total = Math.round(secPerKm)
+  const m = Math.floor(total / 60)
+  const s = total % 60
   return `${m}'${String(s).padStart(2, '0')}"`
 }
 

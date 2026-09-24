@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { Dialog, Tag, Loading, MessagePlugin } from 'tdesign-react'
+import { Dialog, Tag, Loading, MessagePlugin, Button } from 'tdesign-react'
 import * as echarts from 'echarts'
 import { adminApi, type ActivityDetail } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime, haversine } from '../utils/format'
+import {
+  getPaceScale,
+  PACE_LEGEND_GRADIENT,
+  ALTITUDE_LEGEND_GRADIENT,
+  VEHICLE_COLOR,
+  VEHICLE_NOTICE_COLOR,
+  usesAltitudeColor,
+} from '../utils/pace'
 import TrackMap from './TrackMap'
 
 const MARKER_LABELS: Record<string, { label: string; theme: 'primary' | 'success' | 'warning' | 'default' }> = {
@@ -22,6 +30,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
   const [detail, setDetail] = useState<ActivityDetail | null>(null)
   const [loading, setLoading] = useState(false)
   const [extent, setExtent] = useState<{ widthKm: number; heightKm: number } | null>(null)
+  const [exporting, setExporting] = useState(false)
   const chartRef = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
 
@@ -121,6 +130,25 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
       ]
     : []
 
+  // 轨迹线着色说明：与 TrackMap 用同一判据（徒步/爬山且有可分档的海拔 → 海拔色带，否则配速色带）
+  const altitudeLegend = !!detail && usesAltitudeColor(detail.trackPoints, detail.type)
+  // 疑似乘车说明整句由接口下发（与小程序详情页同一句）；这里不再本地数点/段——
+  // 详情接口的轨迹点抽稀到 600 点，按抽稀后的点数列必出错
+  const vehicleNotice = detail?.vehicleNotice || ''
+
+  const exportGpx = async () => {
+    if (!id) return
+    setExporting(true)
+    try {
+      const filename = await adminApi.downloadActivityGpx(id)
+      MessagePlugin.success(`已导出 ${filename}`)
+    } catch (e) {
+      MessagePlugin.error((e as Error).message || '导出 GPX 失败')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <Dialog
       header={detail ? `轨迹详情 · ${typeLabel(detail.type)}` : '轨迹详情'}
@@ -173,10 +201,16 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
 
           {/* 轨迹地图 */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>轨迹地图</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>轨迹地图</span>
+              {/* 导出走服务端全量点（详情下发抽稀到 600 点，导出不抽）；坐标按 GPX 标准反算成 WGS-84 */}
+              <Button size="small" variant="outline" loading={exporting} onClick={exportGpx} style={{ marginLeft: 'auto' }}>
+                导出 GPX
+              </Button>
+            </div>
             {detail.trackPoints.length >= 2 ? (
               <>
-                <TrackMap points={detail.trackPoints} markers={detail.markers} height={360} onExtent={setExtent} />
+                <TrackMap points={detail.trackPoints} markers={detail.markers} height={360} activityType={detail.type} onExtent={setExtent} />
                 <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12, color: '#8a93a6', alignItems: 'center' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#00a870', display: 'inline-block' }} />
@@ -198,6 +232,40 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
                     </span>
                   )}
                 </div>
+                {/* 轨迹线颜色说明：与小程序详情页同口径 —— 徒步/爬山按海拔（蓝低→红高），
+                    其余按配速（绝对刻度等分 4 档，慢→快 绿→黄→橙→红）；
+                    配速档在无时间戳时 TrackMap 回退单色，此时不出图例 */}
+                {(altitudeLegend || vehicleNotice || detail.trackPoints.some((p) => !!p.timestamp)) && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 12, color: '#8a93a6', alignItems: 'center' }}>
+                    <span style={{ whiteSpace: 'nowrap' }}>
+                      {altitudeLegend ? '海拔低' : `慢 ${fmtPace(getPaceScale(detail.type).slow)}`}
+                    </span>
+                    <span
+                      style={{
+                        flex: 1,
+                        height: 6,
+                        borderRadius: 3,
+                        background: altitudeLegend ? ALTITUDE_LEGEND_GRADIENT : PACE_LEGEND_GRADIENT,
+                      }}
+                    />
+                    <span style={{ whiteSpace: 'nowrap' }}>
+                      {altitudeLegend ? '海拔高' : `${fmtPace(getPaceScale(detail.type).fast)} 快`}
+                    </span>
+                    {vehicleNotice && (
+                      <>
+                        <span
+                          style={{ width: 14, height: 6, borderRadius: 3, background: VEHICLE_COLOR, marginLeft: 4 }}
+                        />
+                        <span style={{ whiteSpace: 'nowrap' }}>疑似搭车 · 未计入</span>
+                      </>
+                    )}
+                  </div>
+                )}
+                {vehicleNotice && (
+                  <div style={{ marginTop: 4, fontSize: 12, fontWeight: 500, color: VEHICLE_NOTICE_COLOR }}>
+                    {vehicleNotice}
+                  </div>
+                )}
               </>
             ) : (
               <div style={{ padding: '24px 0', textAlign: 'center', color: '#8a93a6', fontSize: 13, background: '#f8f9fb', borderRadius: 8 }}>

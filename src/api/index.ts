@@ -61,6 +61,40 @@ async function request<T>(path: string, opts: { method?: string; body?: unknown 
   return json.data as T
 }
 
+/**
+ * 导出轨迹 GPX（文件流，不走 request() 的 JSON 信封）
+ * 必须带管理员凭证 → 只能 fetch 成 blob 再用 a[download] 触发下载，直链 <a href> 带不上 Authorization 头
+ * @returns 落盘文件名（取服务端的 Content-Disposition）
+ */
+export async function downloadActivityGpx(id: string): Promise<string> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  const res = await fetch(`${API_BASE}/admin/activities/${id}/gpx`, { headers })
+  if (res.status === 401) {
+    redirectToLogin()
+    throw new Error('登录已过期，请重新登录')
+  }
+  if (!res.ok) {
+    // 失败时服务端回 JSON 信封（如「活动没有轨迹点，无法导出 GPX」），把原因原样抛给调用方提示
+    const msg = await res
+      .json()
+      .then((j: { message?: string }) => j?.message)
+      .catch(() => '')
+    throw new Error(msg || `导出失败(${res.status})`)
+  }
+  const filename = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? `activity-${id}.gpx`
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+  return filename
+}
+
 /** 统计概况分段（今日/周/月/年/累计） */
 export interface OverviewSection {  count: number
   distance: number // 米
@@ -120,6 +154,8 @@ export interface ActivityTrackPoint {
   speed: number | null
   accuracy: number | null
   pauseGap?: boolean
+  /** 服务端判出的非运动段（疑似乘车）：地图画灰，指标已在服务端剔除 */
+  vehicle?: boolean
   timestamp: number
 }
 
@@ -158,6 +194,8 @@ export interface ActivityDetail {
   startProvince: string
   startCity: string
   pausedMs: number
+  /** 疑似乘车整句说明（服务端拼好下发，与小程序详情页同一句）；无车速段为空串 */
+  vehicleNotice: string
   note: string
   pointsCount: number
   trackPoints: ActivityTrackPoint[]
@@ -356,6 +394,7 @@ export const adminApi = {
   userLoginStats: (id: string) =>
     request<{ last7Days: number; last30Days: number; last180Days: number; total: number }>(`/admin/users/${id}/login-stats`),
   activityDetail: (id: string) => request<ActivityDetail>(`/admin/activities/${id}`),
+  downloadActivityGpx,
   // 预览列按需取整组照片：列表只给 photoCount + 签名首图，一页 100 行 × 多图全签名是白烧 CPU
   activityPhotos: (id: string) =>
     request<ActivityDetail>(`/admin/activities/${id}`).then((d) => flattenMarkerPhotos(d.markers)),
