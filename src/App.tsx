@@ -46,6 +46,7 @@ function LoginPage() {
   return (
     <div className="login-page">
       <Card className="login-card">
+        <img className="login-logo" src="/logo.svg" alt="小迹一下" />
         <div className="login-title" style={{ fontSize: 20, fontWeight: 700, color: '#0052d9' }}>小迹一下 · 管理后台</div>
         <div className="login-sub">{redirect ? '登录已过期，请重新登录' : '运动轨迹小程序数据管理'}</div>
         <div style={{ marginBottom: 16 }}>

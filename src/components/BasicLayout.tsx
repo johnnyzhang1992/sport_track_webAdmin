@@ -67,7 +67,12 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
     <Layout style={{ height: '100vh' }}>
       <Aside width="200px">
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div className="brand"><span className="brand-logo">迹</span>管理后台</div>
+          <div className="brand">
+            <span className="brand-logo">
+              <img className="brand-logo-img" src="/logo.svg" alt="小迹一下" />
+            </span>
+            管理后台
+          </div>
           <Menu width={200} className="side-menu" value={'/' + (location.pathname.split('/')[1] || '')} onChange={handleMenu}>
             {MENUS.map((m) => (
               <Menu.MenuItem key={m.value} value={m.value}>
