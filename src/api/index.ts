@@ -154,6 +154,8 @@ export interface ActivityTrackPoint {
   speed: number | null
   accuracy: number | null
   pauseGap?: boolean
+  /** 服务端判出的采样断档连线（丢锁后重定位超前）：线在此断开，点与指标都保留 */
+  gapJump?: boolean
   /** 服务端判出的非运动段（疑似乘车）：地图画灰，指标已在服务端剔除 */
   vehicle?: boolean
   timestamp: number

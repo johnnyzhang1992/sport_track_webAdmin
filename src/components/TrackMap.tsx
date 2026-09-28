@@ -2,12 +2,14 @@
 import { useEffect, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { altitudeSegColors, applyVehicleColor, computeSegPaces, paceColor, usesAltitudeColor } from '../utils/pace'
+import { altitudeSegColors, applyVehicleColor, computeSegPaces, lineBreakRanges, paceColor, usesAltitudeColor } from '../utils/pace'
 
 export interface TrackLatLng {
   lat: number
   lng: number
   pauseGap?: boolean
+  /** 服务端判出的采样断档连线（丢锁后重定位超前）：与 pauseGap 一样断线，点与指标都保留 */
+  gapJump?: boolean
   timestamp?: number
   altitude?: number | null
   /** 服务端判出的非运动段（疑似乘车）：线画灰，不隐身删掉 */
@@ -56,17 +58,9 @@ export default function TrackMap({ points, markers = [], height = 360, activityT
     const coords: [number, number][] = points.map((p) => [p.lng, p.lat])
     const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds())
 
-    // 按 pauseGap 切段（暂停间隙断开连线）+ 逐点着色：只依赖点数据，算一次即可，
-    // 地图 move/resize 重绘不重复计算
-    const ranges: { start: number; end: number }[] = []
-    let segStart = 0
-    for (let i = 0; i < points.length; i++) {
-      if (points[i].pauseGap && i > segStart) {
-        ranges.push({ start: segStart, end: i })
-        segStart = i
-      }
-    }
-    ranges.push({ start: segStart, end: points.length })
+    // 断开标记切段（pauseGap 暂停间隙 / gapJump 采样断档连线都不画线）+ 逐点着色：
+    // 只依赖点数据，算一次即可，地图 move/resize 重绘不重复计算
+    const ranges = lineBreakRanges(points)
     const segs = ranges.map((r) => points.slice(r.start, r.end))
     // 每段一个「与段内点等长」的颜色数组，下标 i = 进入第 i 点那一步的颜色，null = 该步不画
     // 徒步/爬山有可分档的海拔 → 按海拔；其余按平滑配速；配速算不出来（点没时间戳）→ 整条单色

@@ -14,6 +14,8 @@ export interface PacePoint {
   lng: number
   timestamp?: number
   pauseGap?: boolean
+  /** 服务端判出的采样断档连线（丢锁后重定位超前）：与 pauseGap 一样断线，点与指标都保留 */
+  gapJump?: boolean
 }
 
 /** 慢→快 4 档平色（绿→黄→橙→红），与小程序 PACE_COLORS 同序同值 */
@@ -65,6 +67,24 @@ export function splitByPauseGaps<T extends PacePoint>(segs: T[][]): T[][] {
     if (start < seg.length) result.push(seg.slice(start))
   }
   return result.filter((s) => s.length >= 2)
+}
+
+/**
+ * 渲染切段的索引区间：pauseGap（手动暂停）与 gapJump（采样断档连线）都不画连线
+ * 与小程序 utils/track-pace.js#splitByUnreliableLinks 同一口径（那边直接返回分段，这里返回 [start,end) 供投影点复用）
+ * 只影响画不画这条线：点全部保留，距离/配速等数字一律不动（指标在服务端算，端上只着色）
+ */
+export function lineBreakRanges(points: PacePoint[]): { start: number; end: number }[] {
+  const ranges: { start: number; end: number }[] = []
+  let start = 0
+  for (let i = 0; i < points.length; i++) {
+    if ((points[i].pauseGap || points[i].gapJump) && i > start) {
+      ranges.push({ start, end: i })
+      start = i
+    }
+  }
+  ranges.push({ start, end: points.length })
+  return ranges
 }
 
 /**
