@@ -100,6 +100,10 @@ export default function Activities() {
         ? `${row.userNickname || '微信用户'} · ${typeLabel(row.type)} · ${fmtDateTime(row.startTime)}\n标记为无效后，用户端列表/统计/足迹不再计入（可随时恢复）。`
         : `该轨迹将恢复为已完成，重新计入用户端列表/统计/足迹。`,
       confirmBtn: { content: cancelling ? '作废' : '恢复', theme: cancelling ? 'danger' : 'primary' },
+      // 命令式弹窗不会自己关：取消和右上角 X 必须显式 destroy
+      // 命令式弹窗不会自己关：取消和右上角 X 必须显式 destroy
+      onCancel: () => dialog.destroy(),
+      onClose: () => dialog.destroy(),
       onConfirm: () => {
         adminApi
           .updateActivityStatus(row.id, target)

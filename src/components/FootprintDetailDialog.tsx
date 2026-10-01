@@ -34,6 +34,9 @@ export default function FootprintDetailDialog({ id, onClose, onDeleted }: Props)
       header: '删除该足迹？',
       body: `${row.userNickname || '微信用户'} · ${row.visitDate} · ${row.title}\n删除后用户端同步消失，${row.photos.length} 张照片一并从 OSS 清除，不可恢复。`,
       confirmBtn: { content: '删除', theme: 'danger' },
+      // 命令式弹窗不会自己关：取消和右上角 X 必须显式 destroy
+      onCancel: () => dialog.destroy(),
+      onClose: () => dialog.destroy(),
       onConfirm: () => {
         adminApi
           .deleteFootprintRecord(row.id)

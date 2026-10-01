@@ -149,6 +149,9 @@ export default function Topics() {
       header: '删除专题',
       body: `确定删除「${row.title}」吗？删除后立即生效且不可恢复`,
       confirmBtn: { content: '删除', theme: 'danger' },
+      // 命令式弹窗不会自己关：取消和右上角 X 必须显式 destroy
+      onCancel: () => dialog.destroy(),
+      onClose: () => dialog.destroy(),
       onConfirm: async () => {
         try {
           await adminApi.deleteTopic(row.id)
