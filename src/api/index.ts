@@ -318,6 +318,18 @@ export async function uploadTopicImage(file: File): Promise<{ url: string; previ
   return json.data as { url: string; previewUrl: string }
 }
 
+/** 作废轨迹清理预览（列表接口每次刷新带回；真删要显式调 purgeCancelled） */
+export interface PurgePreview {
+  /** 保留期天数，超期才进可删范围 */
+  retentionDays: number
+  /** 到了可删条件的条数（已作废 + 超期 + 恢复出来也成不了一条运动） */
+  wouldDelete: number
+  /** 超期但还能恢复成一条运动的：保留 */
+  keptRescuable: number
+  /** 未到保留期的作废行：本轮不动 */
+  keptRecent: number
+}
+
 export const adminApi = {
   login: (username: string, password: string) =>
     request<{ token: string }>('/admin/login', { method: 'POST', body: { username, password } }),
@@ -358,10 +370,16 @@ export const adminApi = {
       .filter(([, v]) => v !== '' && v != null)
       .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
       .join('&')
-    return request<{ total: number; page: number; items: unknown[] }>(
+    return request<{ total: number; page: number; items: unknown[]; purgePreview?: PurgePreview }>(
       `/admin/activities?page=${page}&pageSize=${pageSize}${qs ? `&${qs}` : ''}`,
     )
   },
+  // 清理已作废轨迹：判据是"恢复出来也成不了一条运动"，不是"有没有点"；不可逆，页面必须二次确认
+  purgeCancelled: () =>
+    request<{ retentionDays: number; scanned: number; wouldDelete: number; deleted: number; keptRescuable: number; keptRecent: number }>(
+      '/admin/activities/purge-cancelled',
+      { method: 'POST', body: { dryRun: false } },
+    ),
   // 足迹记录（管理端只读 + 违规删除）：列表不下发照片，详情弹窗按需取
   footprintRecords: (page = 1, pageSize = 20, filters: Record<string, string> = {}) => {
     const qs = Object.entries(filters)

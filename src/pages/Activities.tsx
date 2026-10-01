@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Table, Tag, Input, Button, Select, InputNumber, DialogPlugin, MessagePlugin } from 'tdesign-react'
 import * as echarts from 'echarts'
 import type { TableSort } from 'tdesign-react'
-import { adminApi, type ActivityStatsRange, type ActivityStatsSection, type ActivityGeoStats } from '../api'
+import { adminApi, type ActivityStatsRange, type ActivityStatsSection, type ActivityGeoStats, type PurgePreview } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
 import FootprintMap from '../components/FootprintMap'
@@ -118,6 +118,28 @@ export default function Activities() {
     })
   }
 
+  /** 清理已作废轨迹：条数由列表接口每次带回的预览给出，真删必须在这里二次确认 */
+  const runPurge = () => {
+    if (!purge || !purge.wouldDelete) return
+    const dialog = DialogPlugin.confirm({
+      header: '清理已作废轨迹？',
+      body: `将永久删除 ${purge.wouldDelete} 条已作废、且恢复后也成不了一条运动的轨迹（作废超 ${purge.retentionDays} 天）。\n仍保留：${purge.keptRescuable} 条虽超期但恢复得出来、${purge.keptRecent} 条未到保留期。\n删除后不可撤销。`,
+      confirmBtn: { content: '确认删除', theme: 'danger' },
+      onConfirm: () => {
+        adminApi
+          .purgeCancelled()
+          .then((r) => {
+            MessagePlugin.success(`已清理 ${r.deleted} 条作废轨迹`)
+            dialog.destroy()
+            load(page)
+          })
+          .catch((e) => MessagePlugin.error((e as Error).message))
+      },
+      onCancel: () => dialog.destroy(),
+      onClose: () => dialog.destroy(),
+    })
+  }
+
   useEffect(() => {
     load(1)
     adminApi.activityStats().then(setStats).catch(() => {})
@@ -187,6 +209,8 @@ export default function Activities() {
     order: (sort as { descending?: boolean })?.descending ? 'desc' : (sort as { sortBy?: string })?.sortBy ? 'asc' : '',
   })
 
+  const [purge, setPurge] = useState<PurgePreview | null>(null)
+
   const load = (p: number, ps?: number) => {
     setLoading(true)
     const size = ps ?? pageSize
@@ -195,6 +219,7 @@ export default function Activities() {
       .then((d) => {
         setData(d.items as Activity[])
         setTotal(d.total)
+        setPurge(d.purgePreview ?? null)
       })
       .catch(() => setData([]))
       .finally(() => setLoading(false))
@@ -371,6 +396,10 @@ export default function Activities() {
           />
           <Button theme="primary" onClick={handleSearch}>查询</Button>
           <Button variant="outline" onClick={handleReset}>重置</Button>
+          {/* 入口只留一个按钮，条数与"为什么可删/会保留什么"全在确认弹窗里说 */}
+          {purge && purge.wouldDelete > 0 && (
+            <Button variant="outline" theme="warning" onClick={runPurge}>清理已作废（{purge.wouldDelete}）</Button>
+          )}
         </div>
         <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
           <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>距离(km)</span>
