@@ -4,7 +4,7 @@ import RangeButtons from './RangeButtons'
 
 export const FOOTPRINT_STAT_RANGES: { key: FootprintStatsRange; label: string }[] = [
   { key: 'today', label: '今日' },
-  { key: 'week', label: '近7天' },
+  { key: 'week', label: '本周' },
   { key: 'month', label: '近30天' },
   { key: 'year', label: '近一年' },
   { key: 'all', label: '累计' },

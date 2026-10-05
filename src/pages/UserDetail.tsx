@@ -16,8 +16,8 @@ import FootprintMap from '../components/FootprintMap'
 const RANGES = [
   { key: 'today', label: '今日' },
   { key: 'week', label: '本周' },
-  { key: 'month', label: '本月' },
-  { key: 'year', label: '今年' },
+  { key: 'month', label: '近30天' },
+  { key: 'year', label: '近一年' },
   { key: 'total', label: '累计' },
 ] as const
 

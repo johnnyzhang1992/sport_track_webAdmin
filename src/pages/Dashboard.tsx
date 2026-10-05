@@ -117,10 +117,11 @@ export default function Dashboard() {
     }
   }, [trendType, themeV])
 
+  // 文案与接口口径对齐：week = 东八区自然周（本周），month = 滚动 30 天（近30天）
   const RANGES = [
     { key: 'today', label: '今日', tint: '#0052d9' },
     { key: 'week', label: '本周', tint: '#00a870' },
-    { key: 'month', label: '本月', tint: '#e37318' },
+    { key: 'month', label: '近30天', tint: '#e37318' },
   ]
   const cell = (k: string) => stats?.[k] ?? EMPTY_CELL
   const n = (v?: number) => (v ?? 0).toLocaleString()

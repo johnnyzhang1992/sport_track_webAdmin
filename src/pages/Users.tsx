@@ -229,8 +229,8 @@ export default function Users() {
   const overviewItems = [
     { label: '用户总量', value: stats?.totalUsers ?? 0 },
     { label: '今日注册', value: stats?.today.newUsers ?? 0 },
-    { label: '近7日注册', value: stats?.week.newUsers ?? 0 },
-    { label: '近30日注册', value: stats?.month.newUsers ?? 0 },
+    { label: '近7天注册', value: stats?.week.newUsers ?? 0 },
+    { label: '近30天注册', value: stats?.month.newUsers ?? 0 },
     { label: '今日登录 UV', value: stats?.today.uv ?? 0 },
     { label: '今日登录 PV', value: stats?.today.pv ?? 0 },
     { label: '近7天 UV', value: stats?.week.uv ?? 0 },
