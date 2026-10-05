@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Card, Table } from 'tdesign-react'
 import * as echarts from 'echarts'
 import { Users as UsersIcon, MapTrifold, Ruler, UserPlus, Footprints, Camera } from '@phosphor-icons/react'
-import { adminApi, type AdminStatsCell } from '../api'
+import { adminApi, type AdminStatsCell, type ActivityStatsRange, type ActivityStatsSection } from '../api'
 import FootprintMap from '../components/FootprintMap'
 import { chartColors, onThemeChange } from '../utils/theme'
 
@@ -59,6 +59,7 @@ const Ratio = ({ a, b }: { a: number; b: number }) => (
 export default function Dashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [stats, setStats] = useState<{ [k: string]: AdminStatsCell } | null>(null)
+  const [actStats, setActStats] = useState<Record<ActivityStatsRange, ActivityStatsSection> | null>(null)
   const [trendType, setTrendType] = useState('day')
   const [themeV, setThemeV] = useState(0) // 主题切换计数（触发图表重绘）
   const [region, setRegion] = useState<{ provinces: { name: string; count: number }[]; cities: { name: string; province: string; count: number }[] } | null>(null)
@@ -68,6 +69,8 @@ export default function Dashboard() {
   useEffect(() => {
     adminApi.overview().then(setOverview).catch(() => setOverview(null))
     adminApi.adminStats().then(setStats).catch(() => setStats(null))
+    // 轨迹段用活动口径（开始时间 + 全部状态），与轨迹管理页 / 省份分布 / 趋势线同源
+    adminApi.activityStats().then(setActStats).catch(() => setActStats(null))
     adminApi.regionStats().then(setRegion).catch(() => setRegion(null))
   }, [])
 
@@ -95,7 +98,7 @@ export default function Dashboard() {
         chart.current.setOption({
           textStyle: { color: c.text },
           tooltip: { trigger: 'axis' },
-          legend: { data: ['新增用户', '新增轨迹', '新增足迹'], top: 0, itemWidth: 14, itemHeight: 10, textStyle: { color: c.text } },
+          legend: { data: ['新增用户', '轨迹', '新增足迹'], top: 0, itemWidth: 14, itemHeight: 10, textStyle: { color: c.text } },
           grid: { left: 40, right: 16, top: 52, bottom: 28 }, // top 让出 legend 空间避免重叠
           xAxis: {
             type: 'category',
@@ -106,7 +109,7 @@ export default function Dashboard() {
           yAxis: { type: 'value', minInterval: 1, axisLabel: { color: c.text }, splitLine: { lineStyle: { color: c.splitLine } } },
           series: [
             { name: '新增用户', type: 'bar', data: d.data.map((x) => x.newUsers), itemStyle: { color: '#0052d9', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 18 },
-            { name: '新增轨迹', type: 'bar', data: d.data.map((x) => x.newActivities), itemStyle: { color: '#00a870', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 18 },
+            { name: '轨迹', type: 'bar', data: d.data.map((x) => x.activities), itemStyle: { color: '#00a870', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 18 },
             { name: '新增足迹', type: 'bar', data: d.data.map((x) => x.newFootprints), itemStyle: { color: '#ed7b2f', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 18 },
           ],
         })
@@ -124,6 +127,8 @@ export default function Dashboard() {
     { key: 'month', label: '近30天', tint: '#e37318' },
   ]
   const cell = (k: string) => stats?.[k] ?? EMPTY_CELL
+  // 轨迹段按活动口径：已完成 = finished，总 = 各状态之和（同轨迹管理页的 byStatus）
+  const actSection = (k: string) => actStats?.[k as ActivityStatsRange]
   const n = (v?: number) => (v ?? 0).toLocaleString()
 
   const regionCols = (col: 'provinces' | 'cities') => [
@@ -165,21 +170,19 @@ export default function Dashboard() {
         })}
       </div>
 
-      {/* 三、轨迹：主值就是 已完成 / 总，完成率放副行 */}
+      {/* 三、轨迹：主值就是 已完成 / 总，完成率放副行（口径=开始时间，同轨迹管理页） */}
       <div className="dash-section-title">轨迹</div>
       <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         {RANGES.map((r) => {
-          const s = cell(r.key)
+          const sec = actSection(r.key)
+          const finished = sec?.byStatus.find((s) => s.status === 'finished')?.count ?? 0
+          const total = sec?.byStatus.reduce((sum, s) => sum + s.count, 0) ?? 0
           return (
             <Metric
               key={r.key}
-              value={<Ratio a={s.finishedActivities} b={s.newActivities} />}
-              label={`${r.label}新增轨迹（已完成 / 总）`}
-              sub={
-                s.newActivities
-                  ? `完成率 ${((s.finishedActivities / s.newActivities) * 100).toFixed(1)}%`
-                  : '该周期还没有新增轨迹'
-              }
+              value={<Ratio a={finished} b={total} />}
+              label={`${r.label}轨迹（已完成 / 总）`}
+              sub={total ? `完成率 ${((finished / total) * 100).toFixed(1)}%` : '该周期还没有轨迹'}
               Icon={MapTrifold}
               tint={r.tint}
             />

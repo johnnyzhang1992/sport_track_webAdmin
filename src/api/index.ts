@@ -464,19 +464,20 @@ export interface LoginLogItem {
 /** /admin/stats 的每档计数（今日/本周/本月同构） */
 export interface AdminStatsCell {
   newUsers: number
+  /** 按创建时间新增的轨迹数（含各状态）；概览页轨迹段已改用 /admin/activity-stats */
   newActivities: number
-  /** newActivities 里 status=finished 的子集（概览页「新增轨迹」要显示 已完成/总） */
+  /** newActivities 里 status=finished 的子集 */
   finishedActivities: number
   newFootprints: number
   uv: number
   pv: number
 }
 
-/** /admin/trend 的每个时间桶 */
+/** /admin/trend 的每个时间桶（newUsers/newFootprints 按创建时间；activities 按开始时间） */
 export interface AdminTrendPoint {
   date: string
   newUsers: number
-  newActivities: number
+  activities: number
   newFootprints: number
 }
 
