@@ -182,7 +182,10 @@ export interface ActivityDetail {
   startTime: number
   endTime: number | null
   updatedAt: string
+  /** 运动时长（秒，已扣暂停/静止/乘车段） */
   duration: number
+  /** 总时长（秒，墙钟 endTime − startTime，含暂停与静止） */
+  totalDuration: number
   distance: number
   avgPace: number | null
   fastestKm: number | null
@@ -196,6 +199,8 @@ export interface ActivityDetail {
   startProvince: string
   startCity: string
   pausedMs: number
+  /** 静止时长（毫秒，服务端纠偏/收尾时判出的停留段合计） */
+  standstillMs: number
   /** 疑似乘车整句说明（服务端拼好下发，与小程序详情页同一句）；无车速段为空串 */
   vehicleNotice: string
   note: string
