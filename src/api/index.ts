@@ -343,6 +343,7 @@ export const adminApi = {
   overview: () =>
     request<{
       userCount: number
+      genderCount: { male: number; female: number; unknown: number }
       activityCount: number
       finishedCount: number
       totalDistanceKm: number

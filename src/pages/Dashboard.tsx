@@ -8,6 +8,7 @@ import { chartColors, onThemeChange } from '../utils/theme'
 
 interface Overview {
   userCount: number
+  genderCount: { male: number; female: number; unknown: number }
   activityCount: number
   finishedCount: number
   totalDistanceKm: number
@@ -141,7 +142,13 @@ export default function Dashboard() {
       {/* 一、总数：四张卡，比值直接做主值，不再为「已完成」单开一张 */}
       <div className="dash-section-title">总数</div>
       <div className="metric-grid">
-        <Metric value={n(overview?.userCount)} label="用户总数" Icon={UsersIcon} tint="#0052d9" />
+        <Metric
+          value={n(overview?.userCount)}
+          label="用户总数"
+          Icon={UsersIcon}
+          tint="#0052d9"
+          sub={`男 ${overview?.genderCount?.male ?? 0} · 女 ${overview?.genderCount?.female ?? 0} · 未知 ${overview?.genderCount?.unknown ?? 0}`}
+        />
         <Metric
           value={<Ratio a={overview?.finishedCount ?? 0} b={overview?.activityCount ?? 0} />}
           label="轨迹总数（已完成 / 总）"
