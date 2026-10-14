@@ -410,6 +410,17 @@ export const adminApi = {
     request<{ days: number; data: { date: string; count: number; photos: number }[] }>(
       `/admin/footprint-trend?days=${days}`,
     ),
+  // 一起运动活动（管理端只读）：列表筛选值非法时服务端回 400（不是静默空列表）
+  campaigns: (page = 1, pageSize = 20, filters: Record<string, string> = {}) => {
+    const qs = Object.entries(filters)
+      .filter(([, v]) => v !== '' && v != null)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join('&')
+    return request<{ total: number; page: number; pageSize: number; items: CampaignItem[] }>(
+      `/admin/campaigns?page=${page}&pageSize=${pageSize}${qs ? `&${qs}` : ''}`,
+    )
+  },
+  campaignDetail: (id: string) => request<CampaignDetail>(`/admin/campaigns/${id}`),
   userDetail: (id: string) => request<UserDetail>(`/admin/users/${id}`),
   userLoginLogs: (id: string, page = 1, pageSize = 20, startDate?: string, endDate?: string) => {
     let url = `/admin/users/${id}/login-logs?page=${page}&pageSize=${pageSize}`
@@ -527,9 +538,54 @@ export interface FootprintRecordDetail {
   updatedAt: string
 }
 
+/** 活动列表项（管理端只读） */
+export interface CampaignItem {
+  id: string
+  title: string
+  visibility: 'public' | 'private'
+  status: 'active' | 'ended' | 'dissolved'
+  allowedTypes: string[]
+  memberLimit: number | null
+  startAt: number
+  endAt: number
+  creatorNickname: string
+  creatorUid: number | null
+  joinedCount: number
+  pendingCount: number
+  createdAt: string
+}
+
+/** 活动成员（含加入段与个人汇总） */
+export interface CampaignMemberRow {
+  userId: string
+  role: 'creator' | 'member'
+  state: string
+  name: string
+  uid: number | null
+  joinedAt: number | null
+  leftAt: number | null
+  count: number
+  distance: number
+  duration: number
+}
+
+export interface CampaignDetail {
+  id: string
+  title: string
+  description: string
+  visibility: 'public' | 'private'
+  allowedTypes: string[]
+  memberLimit: number | null
+  startAt: number
+  endAt: number
+  status: 'active' | 'ended' | 'dissolved'
+  createdAt: string
+  updatedAt: string
+  members: CampaignMemberRow[]
+}
+
 /** 足迹概况档位（与后端 /admin/footprint-stats 的 key 同名） */
 export type FootprintStatsRange = 'today' | 'week' | 'month' | 'year' | 'all'
-
 /** 足迹概况单档指标（时间一律按记录创建时间，不是用户手填的到访日期） */
 export interface FootprintStatsCell {
   total: number

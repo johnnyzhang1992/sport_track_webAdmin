@@ -13,6 +13,7 @@ const MENUS = [
   { value: '/users', label: '用户管理' },
   { value: '/activities', label: '轨迹管理' },
   { value: '/footprints', label: '足迹管理' },
+  { value: '/campaigns', label: '一起运动活动' },
   { value: '/leaderboard', label: '运动榜' },
   { value: '/topics', label: '专题管理' },
 ]
