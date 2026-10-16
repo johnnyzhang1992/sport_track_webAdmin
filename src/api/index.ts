@@ -543,7 +543,7 @@ export interface CampaignItem {
   id: string
   title: string
   visibility: 'public' | 'private'
-  status: 'active' | 'ended' | 'dissolved'
+  status: 'upcoming' | 'active' | 'ended' | 'dissolved'
   allowedTypes: string[]
   memberLimit: number | null
   startAt: number
@@ -578,7 +578,7 @@ export interface CampaignDetail {
   memberLimit: number | null
   startAt: number
   endAt: number
-  status: 'active' | 'ended' | 'dissolved'
+  status: 'upcoming' | 'active' | 'ended' | 'dissolved'
   createdAt: string
   updatedAt: string
   members: CampaignMemberRow[]

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Dialog, Table, Tag, Loading, MessagePlugin } from 'tdesign-react'
 import { adminApi, type CampaignDetail, type CampaignMemberRow } from '../api'
 import { fmtDateTime, fmtDuration, fmtKm, typeLabel } from '../utils/format'
+import { campaignStatusMeta } from '../utils/campaign-status'
 
 interface Props {
   id: string | null
@@ -11,14 +12,6 @@ interface Props {
 /** 活动可见性文案（服务端只回 public / private） */
 const VISIBILITY_LABELS: Record<string, string> = { public: '公开', private: '私密' }
 const VISIBILITY_THEMES: Record<string, 'primary' | 'default'> = { public: 'primary', private: 'default' }
-
-/** 活动状态是服务端派生值（已到期但库内仍为 active 的，服务端按 ended 下发），前端不重算 */
-const STATUS_LABELS: Record<string, string> = { active: '进行中', ended: '已结束', dissolved: '已解散' }
-const STATUS_THEMES: Record<string, 'success' | 'default' | 'warning'> = {
-  active: 'success',
-  ended: 'default',
-  dissolved: 'warning',
-}
 
 /** 成员行状态：joined 在队；left / removed 为已离开的历史段（仍在列表里） */
 const MEMBER_STATE_LABELS: Record<string, string> = {
@@ -61,7 +54,7 @@ export default function CampaignDetailDialog({ id, onClose }: Props) {
     ? [
         { label: '活动标题', value: detail.title },
         { label: '可见性', value: VISIBILITY_LABELS[detail.visibility] || detail.visibility },
-        { label: '状态', value: STATUS_LABELS[detail.status] || detail.status },
+        { label: '状态', value: campaignStatusMeta(detail.status).label },
         { label: '开始时间', value: fmtDateTime(detail.startAt) },
         { label: '结束时间', value: fmtDateTime(detail.endAt) },
         { label: '人数上限', value: detail.memberLimit == null ? '不限' : `${detail.memberLimit} 人` },
@@ -94,8 +87,8 @@ export default function CampaignDetailDialog({ id, onClose }: Props) {
             <Tag theme={VISIBILITY_THEMES[detail.visibility] || 'default'} variant="light">
               {VISIBILITY_LABELS[detail.visibility] || detail.visibility}
             </Tag>
-            <Tag theme={STATUS_THEMES[detail.status] || 'default'} variant="light">
-              {STATUS_LABELS[detail.status] || detail.status}
+            <Tag theme={campaignStatusMeta(detail.status).theme} variant="light">
+              {campaignStatusMeta(detail.status).label}
             </Tag>
             <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>活动 ID：{detail.id}</span>
           </div>

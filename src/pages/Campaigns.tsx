@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { Card, Table, Button, Select, Tag } from 'tdesign-react'
 import { adminApi, type CampaignItem } from '../api'
 import { fmtDateTime } from '../utils/format'
+import { campaignStatusMeta } from '../utils/campaign-status'
 import CampaignDetailDialog from '../components/CampaignDetailDialog'
 
 const STATUS_OPTIONS = [
   { label: '全部状态', value: '' },
+  { label: '未开始', value: 'upcoming' },
   { label: '进行中', value: 'active' },
   { label: '已结束', value: 'ended' },
   { label: '已解散', value: 'dissolved' },
@@ -16,14 +18,6 @@ const VISIBILITY_OPTIONS = [
   { label: '公开', value: 'public' },
   { label: '私密', value: 'private' },
 ]
-
-/** 活动状态是服务端派生值（已到期但库内仍为 active 的，服务端按 ended 下发），前端不按 endAt 重算 */
-const STATUS_LABELS: Record<string, string> = { active: '进行中', ended: '已结束', dissolved: '已解散' }
-const STATUS_THEMES: Record<string, 'success' | 'default' | 'warning'> = {
-  active: 'success',
-  ended: 'default',
-  dissolved: 'warning',
-}
 
 const VISIBILITY_LABELS: Record<string, string> = { public: '公开', private: '私密' }
 const VISIBILITY_THEMES: Record<string, 'primary' | 'default'> = { public: 'primary', private: 'default' }
@@ -119,11 +113,14 @@ export default function Campaigns() {
               colKey: 'status',
               title: '状态',
               width: 90,
-              cell: ({ row }) => (
-                <Tag theme={STATUS_THEMES[row.status] || 'default'} variant="light">
-                  {STATUS_LABELS[row.status] || row.status}
-                </Tag>
-              ),
+              cell: ({ row }) => {
+                const { label, theme } = campaignStatusMeta(row.status)
+                return (
+                  <Tag theme={theme} variant="light">
+                    {label}
+                  </Tag>
+                )
+              },
             },
             {
               colKey: 'members',
