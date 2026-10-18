@@ -16,6 +16,7 @@ const MENUS = [
   { value: '/campaigns', label: '一起运动活动' },
   { value: '/leaderboard', label: '运动榜' },
   { value: '/topics', label: '专题管理' },
+  { value: '/notifications', label: '系统通知' },
 ]
 
 export default function BasicLayout({ children }: { children: React.ReactNode }) {

@@ -10,6 +10,7 @@ import Footprints from './pages/Footprints'
 import Campaigns from './pages/Campaigns'
 import Leaderboard from './pages/Leaderboard'
 import Topics from './pages/Topics'
+import Notifications from './pages/Notifications'
 import { getToken, setToken, saveUsername, adminApi } from './api'
 
 function LoginPage() {
@@ -103,6 +104,7 @@ export default function App() {
                 <Route path="/campaigns" element={<Campaigns />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/topics" element={<Topics />} />
+                <Route path="/notifications" element={<Notifications />} />
               </Routes>
             </BasicLayout>
           </Guard>

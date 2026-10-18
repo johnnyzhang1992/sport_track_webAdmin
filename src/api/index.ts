@@ -306,6 +306,17 @@ export interface TopicItem {
   updatedAt: number
 }
 
+/** 系统通知（首页单行入口 + 详情页，纯文本正文） */
+export interface NotificationItem {
+  id: string
+  title: string
+  content: string
+  published: boolean
+  publishedAt: number | null
+  createdAt: number
+  updatedAt: number
+}
+
 /** 专题图片上传：url 是裸链（入库用它），previewUrl 带签名（私有桶，展示用） */
 export async function uploadTopicImage(file: File): Promise<{ url: string; previewUrl: string }> {
   const headers: Record<string, string> = {}
@@ -357,6 +368,14 @@ export const adminApi = {
   updateTopic: (id: string, body: Partial<TopicItem>) =>
     request<TopicItem>(`/admin/topics/${id}`, { method: 'PUT', body }),
   deleteTopic: (id: string) => request<null>(`/admin/topics/${id}`, { method: 'DELETE' }),
+  // 系统通知（首页单行入口 + 详情页）
+  notifications: () => request<NotificationItem[]>('/admin/notifications'),
+  createNotification: (body: Partial<NotificationItem>) =>
+    request<NotificationItem>('/admin/notifications', { method: 'POST', body }),
+  updateNotification: (id: string, body: Partial<NotificationItem>) =>
+    request<NotificationItem>(`/admin/notifications/${id}`, { method: 'PUT', body }),
+  deleteNotification: (id: string) =>
+    request<null>(`/admin/notifications/${id}`, { method: 'DELETE' }),
   users: (page = 1, pageSize = 20, keyword = '', sortBy = '', order = '') =>
     request<{ total: number; page: number; items: unknown[] }>(`/admin/users?page=${page}&pageSize=${pageSize}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}${sortBy ? `&sortBy=${sortBy}` : ''}${order ? `&order=${order}` : ''}`),
   adminStats: () =>
