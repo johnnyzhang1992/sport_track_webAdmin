@@ -105,6 +105,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
     ? [
         { label: '用户', value: detail.userNickname },
         { label: '运动类型', value: typeLabel(detail.type) },
+        { label: '纠偏状态', value: detail.corrected ? '已纠偏' : '未纠偏' },
         { label: '开始时间', value: fmtDateTime(detail.startTime) },
         {
           label: '结束时间',

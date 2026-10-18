@@ -18,6 +18,7 @@ interface Activity {
   userGender: number
   type: string
   status: string
+  corrected: boolean
   distance: number
   duration: number
   calories: number
@@ -460,6 +461,14 @@ export default function Activities() {
                 <Tag theme={row.status === 'finished' ? 'success' : row.status === 'cancelled' ? 'danger' : 'warning'}>
                   {STATUS_LABELS[row.status] || row.status}
                 </Tag>
+              ),
+            },
+            {
+              colKey: 'corrected',
+              title: '纠偏',
+              width: 90,
+              cell: ({ row }) => (
+                <Tag theme={row.corrected ? 'default' : 'warning'}>{row.corrected ? '已纠偏' : '未纠偏'}</Tag>
               ),
             },
             { colKey: 'startProvince', title: '省份', cell: ({ row }) => row.startProvince || '—' },

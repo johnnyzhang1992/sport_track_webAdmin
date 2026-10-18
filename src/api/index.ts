@@ -179,6 +179,8 @@ export interface ActivityDetail {
   userNickname: string
   type: string
   status: string
+  /** 是否已纠偏（旧轨迹缺字段时服务端按已纠偏下发） */
+  corrected: boolean
   startTime: number
   endTime: number | null
   updatedAt: string
