@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Dialog, Table, Tag, Loading, MessagePlugin } from 'tdesign-react'
 import { adminApi, type CampaignDetail, type CampaignMemberRow } from '../api'
 import { fmtDateTime, fmtDuration, fmtKm, typeLabel } from '../utils/format'
@@ -34,21 +34,105 @@ const toMemberRows = (members: CampaignMemberRow[]): MemberRow[] =>
 
 const ROLE_LABELS: Record<string, string> = { creator: '发起人', member: '成员' }
 
+/** 名次徽标：前三名给主题色，其余灰；用固定宽高保证列对齐 */
+function RankBadge({ rank }: { rank: number }) {
+  const colors: Record<number, { bg: string; fg: string }> = {
+    1: { bg: '#fff2e0', fg: '#d48806' },
+    2: { bg: '#f2f3f5', fg: '#4e5969' },
+    3: { bg: '#fdf0e8', fg: '#b36b2d' },
+  }
+  const c = colors[rank] || { bg: 'transparent', fg: 'var(--td-text-color-placeholder, #8a93a6)' }
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        fontSize: 12,
+        fontWeight: 600,
+        background: c.bg,
+        color: c.fg,
+      }}
+    >
+      {rank}
+    </span>
+  )
+}
+
+/** 用户详情页在独立标签页打开：管理端弹窗不打断当前活动详情的浏览 */
+const openUserDetail = (userId: string) => {
+  window.open(`/users/${userId}`, '_blank', 'noopener')
+}
+
+/** 昵称按钮：与普通文本同字号，只在悬停时出现下划线，避免整表变成一片链接 */
+function UserLink({ userId, name }: { userId: string; name: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => openUserDetail(userId)}
+      style={{
+        padding: 0,
+        border: 0,
+        background: 'none',
+        font: 'inherit',
+        color: 'var(--td-brand-color, #0052d9)',
+        cursor: 'pointer',
+      }}
+      title="在新标签页打开用户详情"
+    >
+      {name}
+    </button>
+  )
+}
+
 /** 一起运动活动详情弹窗（管理端只读：自取数 + 成员表，无任何写操作） */
 export default function CampaignDetailDialog({ id, onClose }: Props) {
   const [detail, setDetail] = useState<CampaignDetail | null>(null)
   const [loading, setLoading] = useState(false)
+  /** 成员表翻页只重取成员这一页，不整窗回到 loading（否则内容闪一下、滚动位置也丢） */
+  const [membersLoading, setMembersLoading] = useState(false)
+  /** 改每页条数时 TDesign 会同时触发 onPageSizeChange 与 onChange，回调里的 pageSize 可能是旧值；
+      用 ref 记住「最后一次用户选择」，两个回调都从它取，避免旧值覆盖新值 */
+  const memberSizeRef = useRef(20)
 
   useEffect(() => {
     if (!id) return
     setLoading(true)
     setDetail(null)
+    memberSizeRef.current = 20
     adminApi
       .campaignDetail(id)
       .then(setDetail)
       .catch((e) => MessagePlugin.error((e as Error).message || '加载活动详情失败'))
       .finally(() => setLoading(false))
   }, [id])
+
+  const loadMemberPage = (page: number, pageSize?: number) => {
+    if (!id) return
+    const size = pageSize ?? memberSizeRef.current
+    memberSizeRef.current = size
+    setMembersLoading(true)
+    adminApi
+      .campaignDetail(id, page, size)
+      .then((d) =>
+        setDetail((prev) =>
+          prev
+            ? {
+                ...prev,
+                members: d.members,
+                membersTotal: d.membersTotal,
+                membersPage: d.membersPage,
+                membersPageSize: d.membersPageSize,
+              }
+            : d,
+        ),
+      )
+      .catch((e) => MessagePlugin.error((e as Error).message || '加载成员列表失败'))
+      .finally(() => setMembersLoading(false))
+  }
 
   const items: { label: string; value: string }[] = detail
     ? [
@@ -71,7 +155,7 @@ export default function CampaignDetailDialog({ id, onClose }: Props) {
     <Dialog
       header={detail ? `活动详情 · ${detail.title}` : '活动详情'}
       visible={!!id}
-      width={760}
+      width={940}
       onClose={onClose}
       destroyOnClose
       confirmBtn={null}
@@ -130,17 +214,88 @@ export default function CampaignDetailDialog({ id, onClose }: Props) {
             </div>
           </div>
 
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>按运动类型汇总</div>
+            {detail.typeSummary.length > 0 ? (
+              <Table
+                data={detail.typeSummary}
+                rowKey="type"
+                size="small"
+                bordered
+                columns={[
+                  { colKey: 'type', title: '类型', cell: ({ row }) => typeLabel(row.type) },
+                  { colKey: 'count', title: '次数', width: 90, cell: ({ row }) => row.count },
+                  { colKey: 'distance', title: '距离(km)', width: 110, cell: ({ row }) => fmtKm(row.distance) },
+                  { colKey: 'duration', title: '时长', width: 130, cell: ({ row }) => fmtDuration(row.duration) },
+                ]}
+              />
+            ) : (
+              <div
+                style={{
+                  padding: '16px 0',
+                  textAlign: 'center',
+                  color: 'var(--td-text-color-placeholder, #8a93a6)',
+                  fontSize: 13,
+                  background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)',
+                  borderRadius: 8,
+                }}
+              >
+                暂无计入的轨迹
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>排行榜 · TOP 10（按距离）</div>
+            {detail.leaderboard.length > 0 ? (
+              <Table
+                data={detail.leaderboard}
+                rowKey="rank"
+                size="small"
+                bordered
+                columns={[
+                  { colKey: 'rank', title: '名次', width: 70, cell: ({ row }) => <RankBadge rank={row.rank} /> },
+                  { colKey: 'name', title: '昵称', ellipsis: true, cell: ({ row }) => <UserLink userId={row.userId} name={row.name} /> },
+                  { colKey: 'distance', title: '距离(km)', width: 110, cell: ({ row }) => fmtKm(row.distance) },
+                  { colKey: 'count', title: '次数', width: 90, cell: ({ row }) => row.count },
+                  { colKey: 'duration', title: '时长', width: 130, cell: ({ row }) => fmtDuration(row.duration) },
+                ]}
+              />
+            ) : (
+              <div
+                style={{
+                  padding: '16px 0',
+                  textAlign: 'center',
+                  color: 'var(--td-text-color-placeholder, #8a93a6)',
+                  fontSize: 13,
+                  background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)',
+                  borderRadius: 8,
+                }}
+              >
+                暂无在队成员
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 8 }}>
+              汇总与排行只统计当前在队成员；已离开 / 已被移出的贡献不计入（成员表仍保留其历史段）
+            </div>
+          </div>
+
           <div>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>成员（{detail.members.length}）</div>
-            {detail.members.length > 0 ? (
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>成员（{detail.membersTotal}）</div>
+            {detail.membersTotal > 0 ? (
               <Table<MemberRow>
                 data={toMemberRows(detail.members)}
                 rowKey="rowId"
                 size="small"
                 bordered
+                loading={membersLoading}
                 columns={[
-                  { colKey: 'name', title: '昵称', ellipsis: true, cell: ({ row }) => row.name || '微信用户' },
-                  { colKey: 'uid', title: 'UID', width: 80, cell: ({ row }) => row.uid ?? '—' },
+                  {
+                    colKey: 'name',
+                    title: '昵称',
+                    ellipsis: true,
+                    cell: ({ row }) => <UserLink userId={row.userId} name={row.name || '微信用户'} />,
+                  },
                   { colKey: 'role', title: '角色', width: 80, cell: ({ row }) => ROLE_LABELS[row.role] || row.role },
                   {
                     colKey: 'state',
@@ -158,6 +313,14 @@ export default function CampaignDetailDialog({ id, onClose }: Props) {
                   { colKey: 'distance', title: '距离(km)', width: 90, cell: ({ row }) => fmtKm(row.distance) },
                   { colKey: 'duration', title: '时长', width: 110, cell: ({ row }) => fmtDuration(row.duration) },
                 ]}
+                pagination={{
+                  total: detail.membersTotal,
+                  current: detail.membersPage,
+                  pageSize: detail.membersPageSize,
+                  showJumper: true,
+                  onChange: (info) => loadMemberPage(info.current),
+                  onPageSizeChange: (size) => loadMemberPage(1, size),
+                }}
               />
             ) : (
               <div

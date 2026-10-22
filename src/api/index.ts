@@ -441,7 +441,8 @@ export const adminApi = {
       `/admin/campaigns?page=${page}&pageSize=${pageSize}${qs ? `&${qs}` : ''}`,
     )
   },
-  campaignDetail: (id: string) => request<CampaignDetail>(`/admin/campaigns/${id}`),
+  campaignDetail: (id: string, page = 1, pageSize = 20) =>
+    request<CampaignDetail>(`/admin/campaigns/${id}?page=${page}&pageSize=${pageSize}`),
   userDetail: (id: string) => request<UserDetail>(`/admin/users/${id}`),
   userLoginLogs: (id: string, page = 1, pageSize = 20, startDate?: string, endDate?: string) => {
     let url = `/admin/users/${id}/login-logs?page=${page}&pageSize=${pageSize}`
@@ -590,6 +591,24 @@ export interface CampaignMemberRow {
   duration: number
 }
 
+/** 活动内按运动类型的汇总（只统计当前在队成员的贡献时段） */
+export interface CampaignTypeSummaryRow {
+  type: string
+  count: number
+  distance: number
+  duration: number
+}
+
+/** 活动内距离排行榜（只在队成员，服务端已排好序并带名次，TOP 10） */
+export interface CampaignLeaderboardRow {
+  rank: number
+  userId: string
+  name: string
+  distance: number
+  count: number
+  duration: number
+}
+
 export interface CampaignDetail {
   id: string
   title: string
@@ -602,7 +621,13 @@ export interface CampaignDetail {
   status: 'upcoming' | 'active' | 'ended' | 'dissolved'
   createdAt: string
   updatedAt: string
+  typeSummary: CampaignTypeSummaryRow[]
+  leaderboard: CampaignLeaderboardRow[]
+  /** 成员表当前页（含已离开/被移出的历史段）；汇总与排行榜始终按全员算 */
   members: CampaignMemberRow[]
+  membersTotal: number
+  membersPage: number
+  membersPageSize: number
 }
 
 /** 足迹概况档位（与后端 /admin/footprint-stats 的 key 同名） */
