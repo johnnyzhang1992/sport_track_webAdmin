@@ -283,6 +283,15 @@ export interface UserGeoStats {
   cities: { name: string; province: string; users: number }[]
 }
 
+/** 小时分布统计时间档（用户活跃时段 / 轨迹频率共用）：当天 / 最近 7 天 / 最近 30 天 */
+export type HourStatsRange = 'today' | 'week' | 'month'
+
+/** 小时桶：hour 为东八区 0–23 时，count 为该小时内的登录次数 / 轨迹数（多天档位为合计） */
+export interface HourStatsPoint {
+  hour: number
+  count: number
+}
+
 export type ActivityStatsRange = 'today' | 'week' | 'month' | 'year' | 'all'
 export type ActivityStatsSection = {
   count: number
@@ -392,6 +401,9 @@ export const adminApi = {
     request<{ days: number; data: { date: string; count: number; distanceKm: number }[] }>(`/admin/activity-trend?days=${days}`),
   activityGeoStats: (range: ActivityStatsRange = 'all') =>
     request<ActivityGeoStats>(`/admin/activity-geo-stats?range=${range}`),
+  // 轨迹频率统计：已完成轨迹按开始时间小时分桶（24 桶补零）
+  activityHourStats: (range: HourStatsRange = 'today') =>
+    request<{ range: HourStatsRange; data: HourStatsPoint[] }>(`/admin/activity-hour-stats?range=${range}`),
   activities: (page = 1, pageSize = 20, filters: Record<string, string> = {}) => {
     const qs = Object.entries(filters)
       .filter(([, v]) => v !== '' && v != null)
@@ -477,6 +489,9 @@ export const adminApi = {
   userTrend: (range: UserTrendRange = 'week') =>
     request<{ range: UserTrendRange; data: UserTrendPoint[] }>(`/admin/user-trend?range=${range}`),
   userGeoStats: () => request<UserGeoStats>('/admin/user-geo-stats'),
+  // 用户活跃时段：登录记录按小时分桶（24 桶补零）
+  loginHourStats: (range: HourStatsRange = 'today') =>
+    request<{ range: HourStatsRange; data: HourStatsPoint[] }>(`/admin/login-hour-stats?range=${range}`),
   getChinaMap: () => request<any>('/geo/china-map'),
   getProvinceMap: (adcode: number) => request<any>(`/geo/province-map?adcode=${adcode}`),
 }

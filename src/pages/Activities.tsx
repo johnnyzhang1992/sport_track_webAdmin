@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Table, Tag, Input, Button, Select, InputNumber, DialogPlugin, MessagePlugin } from 'tdesign-react'
 import * as echarts from 'echarts'
 import type { TableSort } from 'tdesign-react'
-import { adminApi, type ActivityStatsRange, type ActivityStatsSection, type ActivityGeoStats, type PurgePreview } from '../api'
+import { adminApi, type ActivityStatsRange, type ActivityStatsSection, type ActivityGeoStats, type PurgePreview, type HourStatsRange, type HourStatsPoint } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
 import FootprintMap from '../components/FootprintMap'
@@ -57,6 +57,13 @@ const STAT_RANGES: { key: ActivityStatsRange; label: string }[] = [
   { key: 'all', label: '累计' },
 ]
 
+/** 轨迹频率统计时间档（key 与后端 /admin/activity-hour-stats 的 range 同名） */
+const HOUR_RANGES: { key: HourStatsRange; label: string }[] = [
+  { key: 'today', label: '今天' },
+  { key: 'week', label: '最近7天' },
+  { key: 'month', label: '最近30天' },
+]
+
 const kmNum = (m: number) => (m / 1000).toFixed(2).replace(/\.?0+$/, '')
 
 export default function Activities() {
@@ -88,6 +95,12 @@ export default function Activities() {
   const typePieRef = useRef<HTMLDivElement>(null)
   const typePieChart = useRef<echarts.ECharts | null>(null)
   const [themeV, setThemeV] = useState(0)
+
+  // 轨迹频率统计：已完成轨迹按开始时间小时分桶，时间档独立于上方概况 range
+  const [hourRange, setHourRange] = useState<HourStatsRange>('today')
+  const [hourData, setHourData] = useState<HourStatsPoint[]>([])
+  const hourRef = useRef<HTMLDivElement>(null)
+  const hourChart = useRef<echarts.ECharts | null>(null)
 
   // 主题切换 → 图表重绘
   useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
@@ -150,6 +163,52 @@ export default function Activities() {
   useEffect(() => {
     adminApi.activityGeoStats(range).then(setGeo).catch(() => setGeo(null))
   }, [range])
+
+  useEffect(() => {
+    adminApi
+      .activityHourStats(hourRange)
+      .then((d) => setHourData(d.data))
+      .catch(() => setHourData([]))
+  }, [hourRange])
+
+  // 轨迹频率柱状图：X 轴 0–23 时（东八区），Y 轴该小时内开始的已完成轨迹数
+  useEffect(() => {
+    if (!hourRef.current || hourData.length === 0) return
+    if (!hourChart.current) hourChart.current = echarts.init(hourRef.current)
+    const c = chartColors()
+    hourChart.current.setOption(
+      {
+        textStyle: { color: c.text },
+        tooltip: { trigger: 'axis' },
+        grid: { left: 48, right: 20, top: 24, bottom: 28 },
+        xAxis: {
+          type: 'category',
+          data: hourData.map((p) => `${p.hour}时`),
+          axisLabel: { color: c.text, interval: 0 },
+          axisLine: { lineStyle: { color: c.axisLine } },
+        },
+        yAxis: {
+          type: 'value',
+          minInterval: 1,
+          axisLabel: { color: c.text },
+          splitLine: { lineStyle: { color: c.splitLine } },
+        },
+        series: [
+          {
+            name: '轨迹数',
+            type: 'bar',
+            barMaxWidth: 22,
+            itemStyle: { color: '#0052d9', borderRadius: [4, 4, 0, 0] },
+            data: hourData.map((p) => p.count),
+          },
+        ],
+      },
+      true,
+    )
+    const ro = new ResizeObserver(() => hourChart.current?.resize())
+    ro.observe(hourRef.current)
+    return () => ro.disconnect()
+  }, [hourData, themeV])
 
   // 趋势折线：轨迹数（左轴）+ 距离 km（右轴）
   useEffect(() => {
@@ -362,6 +421,15 @@ export default function Activities() {
             ]}
           />
         </div>
+      </Card>
+
+      {/* 轨迹频率统计：已完成轨迹按开始时间小时分桶（今天 / 最近 7 天 / 最近 30 天合计），时间档独立于上方概况 */}
+      <Card className="page-card" title="轨迹频率统计（按开始时间）" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 13, color: 'var(--td-text-color-secondary, #4e5969)' }}>时间范围</span>
+          <RangeButtons options={HOUR_RANGES} value={hourRange} onChange={setHourRange} />
+        </div>
+        <div ref={hourRef} style={{ width: '100%', height: 280 }} />
       </Card>
 
       {/* 趋势 + 省份分布 */}

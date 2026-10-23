@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Table, Tag, Input, Button, Space, Dialog, MessagePlugin, Textarea } from 'tdesign-react'
 import type { TableSort } from 'tdesign-react'
 import * as echarts from 'echarts'
-import { adminApi, type UserStats, type UserTrendPoint, type UserTrendRange, type UserGeoStats } from '../api'
+import { adminApi, type UserStats, type UserTrendPoint, type UserTrendRange, type UserGeoStats, type HourStatsRange, type HourStatsPoint } from '../api'
 import FootprintMap from '../components/FootprintMap'
+import RangeButtons from '../components/RangeButtons'
 import { chartColors, onThemeChange } from '../utils/theme'
 
 interface User {
@@ -31,29 +32,12 @@ const RANGES: { key: UserTrendRange; label: string }[] = [
   { key: 'year', label: '最近一年' },
 ]
 
-/** 时间范围按钮组（与轨迹页 RangeButtons 同款） */
-function RangeButtons({ value, onChange }: { value: UserTrendRange; onChange: (v: UserTrendRange) => void }) {
-  return (
-    <div style={{ display: 'flex', gap: 8 }}>
-      {RANGES.map((r) => (
-        <div
-          key={r.key}
-          onClick={() => onChange(r.key)}
-          style={{
-            padding: '4px 14px',
-            borderRadius: 6,
-            fontSize: 13,
-            cursor: 'pointer',
-            background: value === r.key ? '#0052d9' : 'var(--td-bg-color-secondarycontainer, #f2f3f5)',
-            color: value === r.key ? '#fff' : 'var(--td-text-color-secondary, #4e5969)',
-          }}
-        >
-          {r.label}
-        </div>
-      ))}
-    </div>
-  )
-}
+/** 活跃时段时间档（key 与后端 /admin/login-hour-stats 的 range 同名） */
+const HOUR_RANGES: { key: HourStatsRange; label: string }[] = [
+  { key: 'today', label: '今天' },
+  { key: 'week', label: '最近7天' },
+  { key: 'month', label: '最近30天' },
+]
 
 export default function Users() {
   const navigate = useNavigate()
@@ -75,6 +59,12 @@ export default function Users() {
   const loginRef = useRef<HTMLDivElement>(null)
   const regChart = useRef<echarts.ECharts | null>(null)
   const loginChart = useRef<echarts.ECharts | null>(null)
+
+  // 用户活跃时段：登录记录按小时分桶，时间档独立于上方趋势图
+  const [hourRange, setHourRange] = useState<HourStatsRange>('today')
+  const [hourData, setHourData] = useState<HourStatsPoint[]>([])
+  const hourRef = useRef<HTMLDivElement>(null)
+  const hourChart = useRef<echarts.ECharts | null>(null)
 
   // 备注编辑弹窗（仅管理后台可见的内部备注）
   const [noteEdit, setNoteEdit] = useState<{ id: string; nickname: string; note: string } | null>(null)
@@ -119,6 +109,13 @@ export default function Users() {
       .then((d) => setTrend(d.data))
       .catch(() => setTrend([]))
   }, [range])
+
+  useEffect(() => {
+    adminApi
+      .loginHourStats(hourRange)
+      .then((d) => setHourData(d.data))
+      .catch(() => setHourData([]))
+  }, [hourRange])
 
   // 两个柱状图：注册用户量 / 登录数量（UV + PV）
   useEffect(() => {
@@ -189,14 +186,52 @@ export default function Users() {
     }
   }, [trend, range, themeV])
 
+  // 活跃时段柱状图：X 轴 0–23 时（东八区），Y 轴该小时内登录次数
   useEffect(() => {
-    if (!regRef.current && !loginRef.current) return
+    if (!hourRef.current || hourData.length === 0) return
+    if (!hourChart.current) hourChart.current = echarts.init(hourRef.current)
+    const c = chartColors()
+    hourChart.current.setOption(
+      {
+        textStyle: { color: c.text },
+        tooltip: { trigger: 'axis' },
+        grid: { left: 48, right: 20, top: 24, bottom: 28 },
+        xAxis: {
+          type: 'category',
+          data: hourData.map((p) => `${p.hour}时`),
+          axisLabel: { color: c.text, interval: 0 },
+          axisLine: { lineStyle: { color: c.axisLine } },
+        },
+        yAxis: {
+          type: 'value',
+          minInterval: 1,
+          axisLabel: { color: c.text },
+          splitLine: { lineStyle: { color: c.splitLine } },
+        },
+        series: [
+          {
+            name: '登录次数',
+            type: 'bar',
+            barMaxWidth: 22,
+            itemStyle: { color: '#0052d9', borderRadius: [4, 4, 0, 0] },
+            data: hourData.map((p) => p.count),
+          },
+        ],
+      },
+      true,
+    )
+  }, [hourData, themeV])
+
+  useEffect(() => {
+    if (!regRef.current && !loginRef.current && !hourRef.current) return
     const ro = new ResizeObserver(() => {
       regChart.current?.resize()
       loginChart.current?.resize()
+      hourChart.current?.resize()
     })
     if (regRef.current) ro.observe(regRef.current)
     if (loginRef.current) ro.observe(loginRef.current)
+    if (hourRef.current) ro.observe(hourRef.current)
     return () => ro.disconnect()
   }, [])
 
@@ -259,7 +294,7 @@ export default function Users() {
       {/* 趋势筛选（两个柱状图联动） */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: 12, paddingRight: 24 }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--td-text-color-primary, #1f2329)' }}>时间范围</span>
-        <RangeButtons value={range} onChange={setRange} />
+        <RangeButtons options={RANGES} value={range} onChange={setRange} />
       </div>
 
       {/* 两个柱状图：注册用户量 / 登录数量（UV、PV） */}
@@ -271,6 +306,15 @@ export default function Users() {
           <div ref={loginRef} style={{ width: '100%', height: 300 }} />
         </Card>
       </div>
+
+      {/* 用户活跃时段：登录记录按小时分桶（今天 / 最近 7 天 / 最近 30 天合计），时间档独立于上方趋势 */}
+      <Card className="page-card" title="用户活跃时段（按登录记录）" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 13, color: 'var(--td-text-color-secondary, #4e5969)' }}>时间范围</span>
+          <RangeButtons options={HOUR_RANGES} value={hourRange} onChange={setHourRange} />
+        </div>
+        <div ref={hourRef} style={{ width: '100%', height: 280 }} />
+      </Card>
 
       {/* 用户分布：左地图（省维度点亮，用户越多颜色越深） + 右省份分布列表 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: 16, marginBottom: 16 }}>
