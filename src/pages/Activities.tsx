@@ -49,6 +49,12 @@ const STATUS_OPTIONS = [
   { label: '已作废', value: 'cancelled' },
 ]
 
+const PHOTO_OPTIONS = [
+  { label: '全部图片', value: '' },
+  { label: '有图片', value: 'true' },
+  { label: '无图片', value: 'false' },
+]
+
 const STAT_RANGES: { key: ActivityStatsRange; label: string }[] = [
   { key: 'today', label: '今日' },
   { key: 'week', label: '本周' },
@@ -77,6 +83,7 @@ export default function Activities() {
   // 筛选（状态默认已完成）
   const [type, setType] = useState('')
   const [status, setStatus] = useState('finished')
+  const [hasPhoto, setHasPhoto] = useState('')
   const [minDist, setMinDist] = useState<number | undefined>()
   const [maxDist, setMaxDist] = useState<number | undefined>()
   const [minDur, setMinDur] = useState<number | undefined>()
@@ -260,6 +267,7 @@ export default function Activities() {
   const buildFilters = () => ({
     type,
     status,
+    hasPhoto,
     keyword,
     minDistance: minDist != null ? String(minDist) : '',
     maxDistance: maxDist != null ? String(maxDist) : '',
@@ -293,6 +301,7 @@ export default function Activities() {
   const handleReset = () => {
     setType('')
     setStatus('finished')
+    setHasPhoto('')
     setMinDist(undefined)
     setMaxDist(undefined)
     setMinDur(undefined)
@@ -456,6 +465,7 @@ export default function Activities() {
         <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
           <Select style={{ width: 130 }} value={type} options={TYPE_OPTIONS} onChange={(v) => setType(String(v))} />
           <Select style={{ width: 130 }} value={status} options={STATUS_OPTIONS} onChange={(v) => setStatus(String(v))} />
+          <Select style={{ width: 120 }} value={hasPhoto} options={PHOTO_OPTIONS} onChange={(v) => setHasPhoto(String(v))} />
           <Input
             placeholder="搜索用户昵称"
             style={{ width: 160 }}
