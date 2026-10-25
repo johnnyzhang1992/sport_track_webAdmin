@@ -78,6 +78,10 @@ body {
   justify-content: center;
   padding: 10px 0;
 }
+/* 底部两个按钮（主题切换 / 收起侧边栏）堆叠间距 */
+.aside-theme-btn + .aside-theme-btn {
+  margin-top: 4px;
+}
 .brand-logo {
   width: 28px;
   height: 28px;

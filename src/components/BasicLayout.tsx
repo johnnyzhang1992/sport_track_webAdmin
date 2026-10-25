@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Button, Dialog, Input, MessagePlugin } from 'tdesign-react'
 import {
+  ArrowLineLeft,
+  ArrowLineRight,
   Bell,
   ChartLineUp,
   Footprints,
@@ -130,6 +132,15 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
             >
               {theme === 'dark' ? <Sun size={18} /> : <MoonStars size={18} />}
               {!collapsed && <span>{theme === 'dark' ? '浅色模式' : '深色模式'}</span>}
+            </button>
+            <button
+              className={`aside-theme-btn ${collapsed ? 'aside-theme-btn-collapsed' : ''}`}
+              onClick={handleToggleCollapsed}
+              title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+              aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
+            >
+              {collapsed ? <ArrowLineRight size={18} /> : <ArrowLineLeft size={18} />}
+              {!collapsed && <span>收起侧边栏</span>}
             </button>
           </div>
         </div>
