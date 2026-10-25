@@ -1,22 +1,36 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Button, Dialog, Input, MessagePlugin } from 'tdesign-react'
-import { MoonStars, Sun } from '@phosphor-icons/react'
+import {
+  Bell,
+  ChartLineUp,
+  Footprints,
+  List,
+  MapTrifold,
+  MoonStars,
+  Sun,
+  Tag,
+  Trophy,
+  Users,
+  UsersThree,
+} from '@phosphor-icons/react'
 import { getTheme, toggleTheme } from '../utils/theme'
 import type { MenuValue } from 'tdesign-react'
 import { clearToken, adminApi, getUsername } from '../api'
 
 const { Header, Content, Aside } = Layout
 
+const MENU_COLLAPSED_KEY = 'adminMenuCollapsed'
+
 const MENUS = [
-  { value: '/dashboard', label: '数据概览' },
-  { value: '/users', label: '用户管理' },
-  { value: '/activities', label: '轨迹管理' },
-  { value: '/footprints', label: '足迹管理' },
-  { value: '/campaigns', label: '一起运动活动' },
-  { value: '/leaderboard', label: '运动榜' },
-  { value: '/topics', label: '专题管理' },
-  { value: '/notifications', label: '系统通知' },
+  { value: '/dashboard', label: '数据概览', icon: <ChartLineUp size={18} /> },
+  { value: '/users', label: '用户管理', icon: <Users size={18} /> },
+  { value: '/activities', label: '轨迹管理', icon: <MapTrifold size={18} /> },
+  { value: '/footprints', label: '足迹管理', icon: <Footprints size={18} /> },
+  { value: '/campaigns', label: '一起运动活动', icon: <UsersThree size={18} /> },
+  { value: '/leaderboard', label: '运动榜', icon: <Trophy size={18} /> },
+  { value: '/topics', label: '专题管理', icon: <Tag size={18} /> },
+  { value: '/notifications', label: '系统通知', icon: <Bell size={18} /> },
 ]
 
 export default function BasicLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +41,26 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
   const [newPwd, setNewPwd] = useState('')
   const [pwdLoading, setPwdLoading] = useState(false)
   const [theme, setTheme] = useState(getTheme()) // 当前主题（按钮图标/文案用）
+  // 左侧菜单收起状态：刷新后保持上次选择
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(MENU_COLLAPSED_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  const handleToggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(MENU_COLLAPSED_KEY, next ? '1' : '0')
+      } catch {
+        // 隐私模式下 localStorage 不可写，忽略即可
+      }
+      return next
+    })
+  }
 
   const handleToggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'
@@ -67,32 +101,52 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
 
   return (
     <Layout style={{ height: '100vh' }}>
-      <Aside width="200px">
+      <Aside width={collapsed ? '64px' : '200px'}>
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div className="brand">
+          <div className={`brand ${collapsed ? 'brand-collapsed' : ''}`}>
             <span className="brand-logo">
               <img className="brand-logo-img" src="/logo.svg" alt="小迹一下" />
             </span>
-            管理后台
+            {!collapsed && '管理后台'}
           </div>
-          <Menu width={200} className="side-menu" value={'/' + (location.pathname.split('/')[1] || '')} onChange={handleMenu}>
+          <Menu
+            width={[200, 64]}
+            collapsed={collapsed}
+            className="side-menu"
+            value={'/' + (location.pathname.split('/')[1] || '')}
+            onChange={handleMenu}
+          >
             {MENUS.map((m) => (
-              <Menu.MenuItem key={m.value} value={m.value}>
+              <Menu.MenuItem key={m.value} value={m.value} icon={m.icon} tooltipProps={{ content: m.label }}>
                 {m.label}
               </Menu.MenuItem>
             ))}
           </Menu>
-          <div className="aside-bottom">
-            <button className="aside-theme-btn" onClick={handleToggleTheme}>
+          <div className={`aside-bottom ${collapsed ? 'aside-bottom-collapsed' : ''}`}>
+            <button
+              className={`aside-theme-btn ${collapsed ? 'aside-theme-btn-collapsed' : ''}`}
+              onClick={handleToggleTheme}
+              title={theme === 'dark' ? '浅色模式' : '深色模式'}
+            >
               {theme === 'dark' ? <Sun size={18} /> : <MoonStars size={18} />}
-              <span>{theme === 'dark' ? '浅色模式' : '深色模式'}</span>
+              {!collapsed && <span>{theme === 'dark' ? '浅色模式' : '深色模式'}</span>}
             </button>
           </div>
         </div>
       </Aside>
       <Layout>
         <Header className="topbar">
-          <span>运动轨迹小程序管理后台</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              className="menu-toggle"
+              onClick={handleToggleCollapsed}
+              title={collapsed ? '展开菜单' : '收起菜单'}
+              aria-label={collapsed ? '展开菜单' : '收起菜单'}
+            >
+              <List size={20} />
+            </button>
+            <span>运动轨迹小程序管理后台</span>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#0052d9,#2b6cf6)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 }}>

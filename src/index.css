@@ -21,6 +21,31 @@ body {
   font-size: 16px;
   color: #0052d9;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* 菜单收起：只留 logo，居中 */
+.brand-collapsed {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+/* 顶栏菜单开关 */
+.menu-toggle {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--td-text-color-secondary, #4e5969);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.menu-toggle:hover {
+  background: var(--td-bg-color-secondarycontainer, #f2f3f5);
 }
 /* 侧栏底部区域（主题切换按钮挂载点） */
 .aside-bottom {
@@ -45,6 +70,14 @@ body {
 .aside-theme-btn:hover {
   background: var(--td-bg-color-secondarycontainer, #f2f3f5);
 }
+/* 菜单收起：底部按钮只留图标 */
+.aside-bottom-collapsed {
+  padding: 12px 8px;
+}
+.aside-theme-btn-collapsed {
+  justify-content: center;
+  padding: 10px 0;
+}
 .brand-logo {
   width: 28px;
   height: 28px;
@@ -62,6 +95,15 @@ body {
 /* 侧边栏 */
 .side-menu {
   padding-top: 8px;
+}
+/* TDesign 只给带 .t-icon 的图标加右间距；这里传的是裸 svg，补一个 8px，
+   收起态图标居中，间距归零 */
+.side-menu .t-menu__item > svg {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+.side-menu.t-is-collapsed .t-menu__item > svg {
+  margin-right: 0;
 }
 
 /* 顶栏 */
