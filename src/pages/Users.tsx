@@ -6,11 +6,14 @@ import * as echarts from 'echarts'
 import { adminApi, type UserStats, type UserTrendPoint, type UserTrendRange, type UserGeoStats, type HourStatsRange, type HourStatsPoint } from '../api'
 import FootprintMap from '../components/FootprintMap'
 import RangeButtons from '../components/RangeButtons'
+import UserAvatar from '../components/UserAvatar'
 import { chartColors, onThemeChange } from '../utils/theme'
 
 interface User {
   id: string
   nickname: string
+  /** 服务端已按头像档位签名下发；无头像为空串（前端用首字占位） */
+  avatarUrl: string
   gender: number
   uid: string
   weightKg: number
@@ -396,11 +399,21 @@ export default function Users() {
             {
               colKey: 'nickname',
               title: '昵称',
-              width: 150,
+              width: 190,
               ellipsis: true,
               cell: ({ row }) => (
-                <Button theme="primary" variant="text" style={{ padding: 0 }} onClick={() => navigate(`/users/${row.id}`)}>
-                  {row.nickname || '微信用户'}
+                <Button
+                  theme="primary"
+                  variant="text"
+                  style={{ padding: 0, height: 'auto' }}
+                  onClick={() => navigate(`/users/${row.id}`)}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <UserAvatar url={row.avatarUrl} name={row.nickname} size={28} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {row.nickname || '微信用户'}
+                    </span>
+                  </span>
                 </Button>
               ),
             },

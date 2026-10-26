@@ -8,6 +8,7 @@ import { chartColors, onThemeChange } from '../utils/theme'
 import { adminApi, type UserDetail as UserDetailData, type BestRow, type LoginLogItem, type FootprintRecordItem, type FootprintStatsCell, type FootprintStatsRange } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
+import UserAvatar from '../components/UserAvatar'
 import FootprintDetailDialog from '../components/FootprintDetailDialog'
 import FootprintStatsPanel from '../components/FootprintStatsPanel'
 import PhotoCell from '../components/PhotoCell'
@@ -287,27 +288,7 @@ export default function UserDetail() {
       {/* 个人资料卡 */}
       <Card className="page-card">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {user.avatarUrl ? (
-            <img src={user.avatarUrl} alt="头像" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover' }} />
-          ) : (
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg,#0052d9,#2b6cf6)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 22,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              {(user.nickname || 'U')[0].toUpperCase()}
-            </div>
-          )}
+          <UserAvatar url={user.avatarUrl} name={user.nickname} size={56} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
               {user.nickname || '微信用户'}
