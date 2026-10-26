@@ -259,7 +259,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
                         <span
                           style={{ width: 14, height: 6, borderRadius: 3, background: VEHICLE_COLOR, marginLeft: 4 }}
                         />
-                        <span style={{ whiteSpace: 'nowrap' }}>疑似搭车 · 未计入</span>
+                        <span style={{ whiteSpace: 'nowrap' }}>疑似搭车/漂移 · 未计入</span>
                       </>
                     )}
                   </div>
