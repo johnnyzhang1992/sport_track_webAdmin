@@ -4,6 +4,7 @@ import { Card, Table, Tag, Loading, Button, type PrimaryTableCol } from 'tdesign
 import * as echarts from 'echarts'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { adminApi, type CampaignDetail, type CampaignMemberRow } from '../api'
+import CampaignMemberTracksDialog from '../components/CampaignMemberTracksDialog'
 import { fmtDateTime, fmtDuration, fmtKm, typeLabel } from '../utils/format'
 import { campaignStatusMeta } from '../utils/campaign-status'
 
@@ -44,7 +45,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 
 type MemberCol = PrimaryTableCol<CampaignMemberRow>
 
-const memberColumns: MemberCol[] = [
+const memberColumns = (openTracks: (userId: string, name: string) => void): MemberCol[] => [
   { colKey: 'name', title: '昵称', cell: ({ row }) => <span style={{ fontWeight: 500 }}>{row.name}</span> },
   { colKey: 'uid', title: 'UID', width: 90 },
   {
@@ -88,6 +89,21 @@ const memberColumns: MemberCol[] = [
       return n > 0 ? <Tag theme="warning" variant="light">{n} 条</Tag> : <span style={{ color: '#c2c7d0' }}>0</span>
     },
   },
+  {
+    colKey: 'op',
+    title: '轨迹',
+    width: 90,
+    cell: ({ row }: { row: CampaignMemberRow }) => (
+      <Button
+        size="small"
+        variant="text"
+        theme="primary"
+        onClick={() => openTracks(row.userId, row.name)}
+      >
+        查看轨迹
+      </Button>
+    ),
+  },
 ]
 
 export default function CampaignDetailPage() {
@@ -96,6 +112,7 @@ export default function CampaignDetailPage() {
   const [detail, setDetail] = useState<CampaignDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [tracksTarget, setTracksTarget] = useState<{ userId: string; name: string } | null>(null)
   const [memberPage, setMemberPage] = useState(1)
   const pageSize = 20
   const chartRef = useRef<HTMLDivElement | null>(null)
@@ -234,7 +251,21 @@ export default function CampaignDetailPage() {
           </Card>
 
           {/* 排行榜 */}
-          <Card title="距离排行榜 TOP10">
+          <Card
+            title="距离排行榜 TOP10"
+            header={
+              detail.lastPlace ? (
+                <Button
+                  size="small"
+                  variant="text"
+                  theme="primary"
+                  onClick={() => setTracksTarget({ userId: detail.lastPlace!.userId, name: detail.lastPlace!.name })}
+                >
+                  末位成员：{detail.lastPlace.name}（{fmtKm(detail.lastPlace.distance)} km）的轨迹
+                </Button>
+              ) : undefined
+            }
+          >
             <Table
               rowKey="userId"
               data={detail.leaderboard}
@@ -253,7 +284,7 @@ export default function CampaignDetailPage() {
             <Table
               rowKey="rowId"
               data={toMemberRows(detail.members)}
-              columns={memberColumns}
+              columns={memberColumns((uid, name) => setTracksTarget({ userId: uid, name }))}
               pagination={{
                 total: detail.membersTotal,
                 current: detail.membersPage,
@@ -267,6 +298,17 @@ export default function CampaignDetailPage() {
             />
           </Card>
         </>
+      ) : null}
+
+      {tracksTarget ? (
+        <CampaignMemberTracksDialog
+          visible={!!tracksTarget}
+          memberName={tracksTarget.name}
+          userId={tracksTarget.userId}
+          startAt={detail?.startAt ?? 0}
+          endAt={detail?.endAt ?? 0}
+          onClose={() => setTracksTarget(null)}
+        />
       ) : null}
     </div>
   )
