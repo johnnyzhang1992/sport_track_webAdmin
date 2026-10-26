@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Table, Button, Select, Tag } from 'tdesign-react'
 import { adminApi, type CampaignItem } from '../api'
 import { fmtDateTime } from '../utils/format'
 import { campaignStatusMeta } from '../utils/campaign-status'
-import CampaignDetailDialog from '../components/CampaignDetailDialog'
 
 const STATUS_OPTIONS = [
   { label: '全部状态', value: '' },
@@ -24,12 +24,12 @@ const VISIBILITY_THEMES: Record<string, 'primary' | 'default'> = { public: 'prim
 
 /** 一起运动活动（只读列表：状态 / 可见性筛选 + 详情弹窗，无任何写操作） */
 export default function Campaigns() {
+  const navigate = useNavigate()
   const [data, setData] = useState<CampaignItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [loading, setLoading] = useState(false)
-  const [detailId, setDetailId] = useState<string | null>(null)
 
   // 筛选：状态、可见性（均为服务端枚举，非法值服务端回 400，这里只发合法枚举或省略）
   const [status, setStatus] = useState('')
@@ -165,7 +165,7 @@ export default function Campaigns() {
               title: '操作',
               width: 80,
               cell: ({ row }) => (
-                <Button size="small" theme="primary" variant="text" onClick={() => setDetailId(row.id)}>
+                <Button size="small" theme="primary" variant="text" onClick={() => navigate(`/campaigns/${row.id}`)}>
                   详情
                 </Button>
               ),
@@ -189,7 +189,6 @@ export default function Campaigns() {
         />
       </Card>
 
-      <CampaignDetailDialog id={detailId} onClose={() => setDetailId(null)} />
     </>
   )
 }

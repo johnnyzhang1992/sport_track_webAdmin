@@ -608,6 +608,8 @@ export interface CampaignMemberRow {
   count: number
   distance: number
   duration: number
+  /** 被 driftScore 门禁排除的轨迹条数（数据保留，不计入活动统计） */
+  excludedCount?: number
 }
 
 /** 活动内按运动类型的汇总（只统计当前在队成员的贡献时段） */
@@ -628,6 +630,17 @@ export interface CampaignLeaderboardRow {
   duration: number
 }
 
+export interface CampaignTrendRow {
+  date: string
+  distance: number
+}
+
+export interface CampaignTotals {
+  count: number
+  distance: number
+  duration: number
+}
+
 export interface CampaignDetail {
   id: string
   title: string
@@ -641,6 +654,12 @@ export interface CampaignDetail {
   createdAt: string
   updatedAt: string
   typeSummary: CampaignTypeSummaryRow[]
+  /** 逐日全队距离趋势（活动跨度内每天一行） */
+  trend: CampaignTrendRow[]
+  /** 当前在队成员的汇总（与小程序活动页同一口径） */
+  totals: CampaignTotals
+  /** 被 driftScore 门禁排除的轨迹总数（当前在队成员） */
+  excludedTotal: number
   leaderboard: CampaignLeaderboardRow[]
   /** 成员表当前页（含已离开/被移出的历史段）；汇总与排行榜始终按全员算 */
   members: CampaignMemberRow[]

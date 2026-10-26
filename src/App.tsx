@@ -8,6 +8,7 @@ import UserDetail from './pages/UserDetail'
 import Activities from './pages/Activities'
 import Footprints from './pages/Footprints'
 import Campaigns from './pages/Campaigns'
+import CampaignDetailPage from './pages/CampaignDetail'
 import Leaderboard from './pages/Leaderboard'
 import Topics from './pages/Topics'
 import Notifications from './pages/Notifications'
@@ -102,6 +103,7 @@ export default function App() {
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/footprints" element={<Footprints />} />
                 <Route path="/campaigns" element={<Campaigns />} />
+                <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/topics" element={<Topics />} />
                 <Route path="/notifications" element={<Notifications />} />
