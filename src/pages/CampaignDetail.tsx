@@ -307,6 +307,7 @@ export default function CampaignDetailPage() {
           userId={tracksTarget.userId}
           startAt={detail?.startAt ?? 0}
           endAt={detail?.endAt ?? 0}
+          allowedTypes={detail?.allowedTypes ?? []}
           onClose={() => setTracksTarget(null)}
         />
       ) : null}

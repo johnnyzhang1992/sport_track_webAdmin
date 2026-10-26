@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Dialog, Table, Tag, Loading } from 'tdesign-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Dialog, Table, Tag, Loading, Select } from 'tdesign-react'
 import { adminApi } from '../api'
 import { fmtDateTime, fmtDuration, fmtKm, typeLabel } from '../utils/format'
 
@@ -7,9 +7,11 @@ interface Props {
   visible: boolean
   memberName: string
   userId: string
-  /** 活动起止：用于给每条轨迹标「活动内 / 活动外」 */
+  /** 活动起止：弹窗只拉活动时间窗内的轨迹，并给每行标「归属」 */
   startAt: number
   endAt: number
+  /** 活动类型白名单：只展示白名单内类型；筛选下拉也只用这些类型 */
+  allowedTypes: string[]
   onClose: () => void
 }
 
@@ -25,32 +27,50 @@ interface Row {
 }
 
 /**
- * 活动成员的全部轨迹（弹窗）：管理端列表接口按 userId 过滤，一次拉 100 条。
+ * 活动成员在活动时间窗内的轨迹（弹窗）：管理端列表接口按 userId + 开始时间区间过滤，
+ * 一次拉 100 条（时间窗内的轨迹很少超过），前端再按活动类型白名单与类型筛选收敛。
  * 每行标「归属」：
- * - 活动内 且 未被门禁排除 → 计入（绿）
+ * - 活动内 且 未被门禁排除（vehicleMs=0 且 driftScore≤门禁）→ 计入（绿）
  * - 活动内 但 vehicleMs>0 或 driftScore 超门禁 → 未计入（橙）
- * - 活动外 → 灰
  */
-export default function CampaignMemberTracksDialog({ visible, memberName, userId, startAt, endAt, onClose }: Props) {
+export default function CampaignMemberTracksDialog({
+  visible,
+  memberName,
+  userId,
+  startAt,
+  endAt,
+  allowedTypes,
+  onClose,
+}: Props) {
   const [rows, setRows] = useState<Row[]>([])
-  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [typeFilter, setTypeFilter] = useState('')
 
   useEffect(() => {
     if (!visible || !userId) return
+    setTypeFilter('')
     setLoading(true)
     adminApi
-      .activities(1, 100, { userId })
+      .activities(1, 100, {
+        userId,
+        startTimeFrom: String(startAt),
+        startTimeTo: String(endAt + 86_399_000), // 结束日到 23:59:59.999
+      })
       .then((r) => {
         setRows((r.items ?? []) as Row[])
-        setTotal(r.total ?? 0)
       })
       .finally(() => setLoading(false))
-  }, [visible, userId])
+  }, [visible, userId, startAt, endAt])
 
-  const inWindow = (t: number) => t >= startAt && t <= endAt
   const isExcluded = (r: Row) => (r.vehicleMs ?? 0) > 0 || (r.driftScore ?? 0) > 30
-  const counted = rows.filter((r) => inWindow(r.startTime) && !isExcluded(r)).length
+
+  // 类型白名单 + 下拉筛选（客户端过滤：一次拉取量很小，不值得再发请求）
+  const visibleRows = useMemo(
+    () => rows.filter((r) => allowedTypes.includes(r.type) && (!typeFilter || r.type === typeFilter)),
+    [rows, allowedTypes, typeFilter],
+  )
+  const counted = visibleRows.filter((r) => !isExcluded(r)).length
+  const excludedCount = visibleRows.length - counted
 
   const columns = [
     {
@@ -78,7 +98,6 @@ export default function CampaignMemberTracksDialog({ visible, memberName, userId
       title: '归属',
       cell: ({ row }: { row: Row }) => {
         if (row.status !== 'finished') return <Tag theme="default" variant="light">未完成</Tag>
-        if (!inWindow(row.startTime)) return <Tag theme="default" variant="light">活动外</Tag>
         if (isExcluded(row)) return <Tag theme="warning" variant="light">未计入（定位异常）</Tag>
         return <Tag theme="success" variant="light">计入</Tag>
       },
@@ -88,7 +107,7 @@ export default function CampaignMemberTracksDialog({ visible, memberName, userId
   return (
     <Dialog
       visible={visible}
-      header={`${memberName} 的全部轨迹（${total} 条）`}
+      header={`${memberName} · 活动期内轨迹（${visibleRows.length} 条计入 / ${excludedCount} 条未计入）`}
       width={860}
       onClose={onClose}
       footer={false}
@@ -99,11 +118,21 @@ export default function CampaignMemberTracksDialog({ visible, memberName, userId
         </div>
       ) : (
         <>
-          <div style={{ marginBottom: 8, fontSize: 12, color: '#86909c' }}>
-            活动内计入 {counted} 条 · 未计入 {rows.filter((r) => inWindow(r.startTime) && isExcluded(r)).length} 条 ·
-            活动外 {rows.filter((r) => !inWindow(r.startTime)).length} 条
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, color: '#86909c' }}>类型筛选</span>
+            <Select
+              size="small"
+              style={{ width: 160 }}
+              value={typeFilter}
+              onChange={(v) => setTypeFilter(String(v))}
+              clearable
+              options={[
+                { label: '全部类型', value: '' },
+                ...allowedTypes.map((t) => ({ label: typeLabel(t), value: t })),
+              ]}
+            />
           </div>
-          <Table rowKey="id" data={rows} columns={columns} max-height={420} />
+          <Table rowKey="id" data={visibleRows} columns={columns} max-height={420} />
         </>
       )}
     </Dialog>
