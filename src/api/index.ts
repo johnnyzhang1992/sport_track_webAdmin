@@ -227,6 +227,10 @@ export interface LeaderboardRankRow {
   avatarPreset: string
   distanceKm: number
   count: number
+  /** 运动时长合计（秒）：筛选范围内 Σ duration */
+  durationSec: number
+  /** 加权平均配速（秒/公里）= Σ时长 ÷ Σ距离；无可信距离为 null */
+  paceSecPerKm: number | null
 }
 
 /** 运动榜"本榜最佳"行（value 单位由 key 决定：米 / 秒） */

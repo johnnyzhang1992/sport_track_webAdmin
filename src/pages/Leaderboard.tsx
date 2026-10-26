@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Table, Tag, Select, Loading, MessagePlugin } from 'tdesign-react'
 import { adminApi, type LeaderboardData, type LeaderboardRegions, type LeaderboardRankRow } from '../api'
-import { TYPE_LABELS } from '../utils/format'
+import { TYPE_LABELS, fmtDuration, fmtPace } from '../utils/format'
 
 /**
  * 运动榜（管理端）：与小程序运动榜同口径
@@ -184,6 +184,21 @@ export default function Leaderboard() {
                 },
               },
               { colKey: 'distanceKm', title: '总距离 (km)', align: 'center' },
+              {
+                colKey: 'durationSec',
+                title: '运动时长',
+                align: 'center',
+                cell: ({ row }) => {
+                  const sec = (row as LeaderboardRankRow).durationSec
+                  return sec > 0 ? fmtDuration(sec) : '—'
+                },
+              },
+              {
+                colKey: 'paceSecPerKm',
+                title: '配速',
+                align: 'center',
+                cell: ({ row }) => fmtPace((row as LeaderboardRankRow).paceSecPerKm),
+              },
               { colKey: 'count', title: '轨迹数', align: 'center' },
               { colKey: 'op', title: '操作', width: 110, align: 'center', cell: () => <span style={{ color: '#0052d9' }}>查看详情 ›</span> },
             ]}
