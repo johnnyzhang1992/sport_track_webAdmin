@@ -300,14 +300,13 @@ export default function CampaignDetailPage() {
         </>
       ) : null}
 
-      {tracksTarget ? (
+      {tracksTarget && detail ? (
         <CampaignMemberTracksDialog
           visible={!!tracksTarget}
+          campaignId={id}
           memberName={tracksTarget.name}
           userId={tracksTarget.userId}
-          startAt={detail?.startAt ?? 0}
-          endAt={detail?.endAt ?? 0}
-          allowedTypes={detail?.allowedTypes ?? []}
+          allowedTypes={detail.allowedTypes}
           onClose={() => setTracksTarget(null)}
         />
       ) : null}

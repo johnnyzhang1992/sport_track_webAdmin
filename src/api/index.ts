@@ -459,6 +459,18 @@ export const adminApi = {
   },
   campaignDetail: (id: string, page = 1, pageSize = 20) =>
     request<CampaignDetail>(`/admin/campaigns/${id}?page=${page}&pageSize=${pageSize}`),
+  // 成员轨迹弹窗：归属（计入/搭车/漂移/未完成/活动外）由服务端按成员全部贡献时段判
+  campaignMemberActivities: (
+    campaignId: string,
+    userId: string,
+    opts: { page?: number; pageSize?: number; type?: string } = {},
+  ) => {
+    const { page = 1, pageSize = 20, type } = opts
+    const typeQs = type ? `&type=${encodeURIComponent(type)}` : ''
+    return request<CampaignMemberActivities>(
+      `/admin/campaigns/${campaignId}/member-activities?userId=${encodeURIComponent(userId)}&page=${page}&pageSize=${pageSize}${typeQs}`,
+    )
+  },
   userDetail: (id: string) => request<UserDetail>(`/admin/users/${id}`),
   userLoginLogs: (id: string, page = 1, pageSize = 20, startDate?: string, endDate?: string) => {
     let url = `/admin/users/${id}/login-logs?page=${page}&pageSize=${pageSize}`
@@ -660,12 +672,58 @@ export interface CampaignDetail {
   totals: CampaignTotals
   /** 被 driftScore 门禁排除的轨迹总数（当前在队成员） */
   excludedTotal: number
+  /** 末位成员（在队、距离最少）：管理端一键看 TA 的全部轨迹 */
+  lastPlace: { userId: string; name: string; distance: number } | null
   leaderboard: CampaignLeaderboardRow[]
   /** 成员表当前页（含已离开/被移出的历史段）；汇总与排行榜始终按全员算 */
   members: CampaignMemberRow[]
   membersTotal: number
   membersPage: number
   membersPageSize: number
+}
+
+/**
+ * 成员轨迹弹窗的行归属（服务端判，与活动汇总同一套判据）：
+ * - counted：计入活动
+ * - vehicle / drift：在贡献时段内，但被「疑似搭车 / 定位漂移」门禁挡掉
+ * - unfinished：还没成为一条完成的运动
+ * - outside：不在该成员任何一个贡献时段内（开赛前、入队前、离队后）
+ */
+export type CampaignMemberActivityReason = 'counted' | 'vehicle' | 'drift' | 'unfinished' | 'outside'
+
+export interface CampaignMemberActivityRow {
+  id: string
+  type: string
+  status: string
+  startTime: number
+  distance: number
+  duration: number
+  vehicleMs: number
+  driftScore: number | null
+  reason: CampaignMemberActivityReason
+}
+
+/** 摘要按全量算（与分页无关），前端头部直接展示 */
+export interface CampaignMemberActivitySummary {
+  counted: number
+  vehicle: number
+  drift: number
+  unfinished: number
+  outside: number
+}
+
+export interface CampaignMemberActivities {
+  campaignId: string
+  userId: string
+  name: string
+  allowedTypes: string[]
+  startAt: number
+  endAt: number
+  summary: CampaignMemberActivitySummary
+  total: number
+  page: number
+  pageSize: number
+  items: CampaignMemberActivityRow[]
 }
 
 /** 足迹概况档位（与后端 /admin/footprint-stats 的 key 同名） */

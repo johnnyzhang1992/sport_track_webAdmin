@@ -1,105 +1,143 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Dialog, Table, Tag, Loading, Select } from 'tdesign-react'
-import { adminApi } from '../api'
-import { fmtDateTime, fmtDuration, fmtKm, typeLabel } from '../utils/format'
+import { useEffect, useState } from 'react'
+import { Dialog, Table, Tag, Loading, Select, MessagePlugin } from 'tdesign-react'
+import {
+  adminApi,
+  type CampaignMemberActivities,
+  type CampaignMemberActivityReason,
+  type CampaignMemberActivityRow,
+} from '../api'
+import { TYPE_LABELS, fmtDateTime, fmtDuration, fmtKm, typeLabel } from '../utils/format'
 
 interface Props {
   visible: boolean
+  campaignId: string
   memberName: string
   userId: string
-  /** 活动起止：弹窗只拉活动时间窗内的轨迹，并给每行标「归属」 */
-  startAt: number
-  endAt: number
-  /** 活动类型白名单：只展示白名单内类型；筛选下拉也只用这些类型 */
+  /** 活动类型白名单：为空＝不限（下拉里给全类型） */
   allowedTypes: string[]
   onClose: () => void
 }
 
-interface Row {
-  id: string
-  type: string
-  status: string
-  startTime: number
-  distance: number
-  duration: number
-  vehicleMs?: number
-  driftScore?: number | null
+const PAGE_SIZE = 20
+
+const REASON_META: Record<
+  CampaignMemberActivityReason,
+  { label: string; theme: 'success' | 'warning' | 'default' }
+> = {
+  counted: { label: '计入', theme: 'success' },
+  vehicle: { label: '未计入（疑似搭车）', theme: 'warning' },
+  drift: { label: '未计入（定位漂移）', theme: 'warning' },
+  unfinished: { label: '未完成', theme: 'default' },
+  outside: { label: '活动外', theme: 'default' },
 }
 
 /**
- * 活动成员在活动时间窗内的轨迹（弹窗）：管理端列表接口按 userId + 开始时间区间过滤，
- * 一次拉 100 条（时间窗内的轨迹很少超过），前端再按活动类型白名单与类型筛选收敛。
- * 每行标「归属」：
- * - 活动内 且 未被门禁排除（vehicleMs=0 且 driftScore≤门禁）→ 计入（绿）
- * - 活动内 但 vehicleMs>0 或 driftScore 超门禁 → 未计入（橙）
+ * 活动成员在活动窗口内的轨迹（弹窗）。
+ *
+ * 归属由服务端判（`/admin/campaigns/:id/member-activities`）：一个人可能离开再复归，
+ * 只拿成员表当前一行的 joinedAt/leftAt 判不出「入队前/离队后」属于活动外；
+ * 前端不再自己按 vehicleMs/driftScore 猜，避免与活动汇总、排行榜数字对不上。
  */
 export default function CampaignMemberTracksDialog({
   visible,
+  campaignId,
   memberName,
   userId,
-  startAt,
-  endAt,
   allowedTypes,
   onClose,
 }: Props) {
-  const [rows, setRows] = useState<Row[]>([])
+  const [data, setData] = useState<CampaignMemberActivities | null>(null)
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
   const [typeFilter, setTypeFilter] = useState('')
+
+  // 换成员/重新打开时回到第一页、清掉类型筛选，别带着上一位的筛选
+  useEffect(() => {
+    if (!visible) return
+    setPage(1)
+    setTypeFilter('')
+    setData(null)
+  }, [visible, userId])
 
   useEffect(() => {
     if (!visible || !userId) return
-    setTypeFilter('')
+    let alive = true
     setLoading(true)
     adminApi
-      .activities(1, 100, {
-        userId,
-        startTimeFrom: String(startAt),
-        startTimeTo: String(endAt + 86_399_000), // 结束日到 23:59:59.999
+      .campaignMemberActivities(campaignId, userId, {
+        page,
+        pageSize: PAGE_SIZE,
+        type: typeFilter || undefined,
       })
-      .then((r) => {
-        setRows((r.items ?? []) as Row[])
+      .then((d) => {
+        if (alive) setData(d)
       })
-      .finally(() => setLoading(false))
-  }, [visible, userId, startAt, endAt])
+      .catch((e) => MessagePlugin.error((e as Error).message || '加载成员轨迹失败'))
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [visible, campaignId, userId, page, typeFilter])
 
-  const isExcluded = (r: Row) => (r.vehicleMs ?? 0) > 0 || (r.driftScore ?? 0) > 30
-
-  // 类型白名单 + 下拉筛选（客户端过滤：一次拉取量很小，不值得再发请求）
-  const visibleRows = useMemo(
-    () => rows.filter((r) => allowedTypes.includes(r.type) && (!typeFilter || r.type === typeFilter)),
-    [rows, allowedTypes, typeFilter],
-  )
-  const counted = visibleRows.filter((r) => !isExcluded(r)).length
-  const excludedCount = visibleRows.length - counted
+  const summary = data?.summary
+  const excluded = summary ? summary.vehicle + summary.drift + summary.unfinished : 0
+  const typeOptions = allowedTypes.length > 0 ? allowedTypes : Object.keys(TYPE_LABELS)
 
   const columns = [
     {
       colKey: 'startTime',
       title: '开始时间',
-      width: 140,
-      cell: ({ row }: { row: Row }) => <span style={{ fontSize: 12 }}>{fmtDateTime(row.startTime)}</span>,
+      width: 150,
+      cell: ({ row }: { row: CampaignMemberActivityRow }) => (
+        <span style={{ fontSize: 12 }}>{fmtDateTime(row.startTime)}</span>
+      ),
     },
-    { colKey: 'type', title: '类型', width: 80, cell: ({ row }: { row: Row }) => typeLabel(row.type) },
-    { colKey: 'distance', title: '距离 (km)', width: 90, align: 'center' as const, cell: ({ row }: { row: Row }) => fmtKm(row.distance) },
-    { colKey: 'duration', title: '时长', width: 90, align: 'center' as const, cell: ({ row }: { row: Row }) => fmtDuration(row.duration) },
+    {
+      colKey: 'type',
+      title: '类型',
+      width: 80,
+      cell: ({ row }: { row: CampaignMemberActivityRow }) => typeLabel(row.type),
+    },
+    {
+      colKey: 'distance',
+      title: '距离 (km)',
+      width: 100,
+      align: 'center' as const,
+      cell: ({ row }: { row: CampaignMemberActivityRow }) => fmtKm(row.distance),
+    },
+    {
+      colKey: 'duration',
+      title: '时长',
+      width: 100,
+      align: 'center' as const,
+      cell: ({ row }: { row: CampaignMemberActivityRow }) => fmtDuration(row.duration),
+    },
     {
       colKey: 'driftScore',
       title: '漂移分',
       width: 80,
       align: 'center' as const,
-      cell: ({ row }: { row: Row }) => {
-        const s = row.driftScore
-        if (s == null) return <span style={{ color: '#c2c7d0' }}>—</span>
-        return s >= 30 ? <Tag theme="danger" variant="light">{s}</Tag> : <span>{s}</span>
+      cell: ({ row }: { row: CampaignMemberActivityRow }) => {
+        if (row.driftScore == null) return <span style={{ color: '#c2c7d0' }}>—</span>
+        return row.reason === 'drift' ? (
+          <Tag theme="danger" variant="light">{row.driftScore}</Tag>
+        ) : (
+          <span>{row.driftScore}</span>
+        )
       },
     },
     {
-      colKey: 'belong',
+      colKey: 'reason',
       title: '归属',
-      cell: ({ row }: { row: Row }) => {
-        if (row.status !== 'finished') return <Tag theme="default" variant="light">未完成</Tag>
-        if (isExcluded(row)) return <Tag theme="warning" variant="light">未计入（定位异常）</Tag>
-        return <Tag theme="success" variant="light">计入</Tag>
+      cell: ({ row }: { row: CampaignMemberActivityRow }) => {
+        const meta = REASON_META[row.reason]
+        return (
+          <Tag theme={meta.theme} variant="light">
+            {meta.label}
+          </Tag>
+        )
       },
     },
   ]
@@ -107,32 +145,62 @@ export default function CampaignMemberTracksDialog({
   return (
     <Dialog
       visible={visible}
-      header={`${memberName} · 活动期内轨迹（${visibleRows.length} 条计入 / ${excludedCount} 条未计入）`}
-      width={860}
+      header={`${memberName} · 活动期内轨迹`}
+      width={880}
       onClose={onClose}
       footer={false}
     >
-      {loading ? (
+      {loading && !data ? (
         <div style={{ padding: 40, textAlign: 'center' }}>
           <Loading text="加载中…" />
         </div>
       ) : (
         <>
-          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              flexWrap: 'wrap',
+              marginBottom: 10,
+            }}
+          >
+            <span style={{ fontSize: 13, color: '#86909c' }}>
+              共 {data?.total ?? 0} 条 · 计入 {summary?.counted ?? 0} 条 · 未计入 {excluded} 条
+              （疑似搭车 {summary?.vehicle ?? 0} · 定位漂移 {summary?.drift ?? 0} · 未完成{' '}
+              {summary?.unfinished ?? 0}） · 活动外 {summary?.outside ?? 0} 条
+            </span>
+            <span style={{ flex: 1 }} />
             <span style={{ fontSize: 13, color: '#86909c' }}>类型筛选</span>
             <Select
               size="small"
               style={{ width: 160 }}
               value={typeFilter}
-              onChange={(v) => setTypeFilter(String(v))}
+              onChange={(v) => {
+                setTypeFilter(String(v ?? ''))
+                setPage(1)
+              }}
               clearable
               options={[
                 { label: '全部类型', value: '' },
-                ...allowedTypes.map((t) => ({ label: typeLabel(t), value: t })),
+                ...typeOptions.map((t) => ({ label: typeLabel(t), value: t })),
               ]}
             />
           </div>
-          <Table rowKey="id" data={visibleRows} columns={columns} max-height={420} />
+          <Table
+            rowKey="id"
+            data={data?.items ?? []}
+            columns={columns}
+            empty="活动期内没有轨迹"
+            loading={loading}
+            pagination={{
+              total: data?.total ?? 0,
+              current: page,
+              pageSize: PAGE_SIZE,
+              showJumper: true,
+              onChange: (info) => setPage(info.current),
+            }}
+          />
         </>
       )}
     </Dialog>
