@@ -147,6 +147,7 @@ export default function CampaignMemberTracksDialog({
       visible={visible}
       header={`${memberName} · 活动期内轨迹`}
       width={880}
+      style={{ maxHeight: '85vh' }}
       onClose={onClose}
       footer={false}
     >
@@ -187,12 +188,15 @@ export default function CampaignMemberTracksDialog({
               ]}
             />
           </div>
+          {/* 行数封顶在弹窗内部滚：整页跟着滚会把表头和分页顶出视口（弹窗 maxHeight 85vh，
+              250px ≈ 标题 + 摘要行 + 表头 + 分页 + 上下内边距） */}
           <Table
             rowKey="id"
             data={data?.items ?? []}
             columns={columns}
             empty="活动期内没有轨迹"
             loading={loading}
+            maxHeight="calc(85vh - 250px)"
             pagination={{
               total: data?.total ?? 0,
               current: page,
