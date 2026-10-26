@@ -68,6 +68,7 @@ const memberColumns = (openTracks: (userId: string, name: string) => void): Memb
     colKey: 'joinedAt',
     title: '加入时间',
     width: 150,
+    sorter: true,
     cell: ({ row }) => <span style={{ fontSize: 12 }}>{fmtDateTime(row.joinedAt)}</span>,
   },
   {
@@ -76,9 +77,9 @@ const memberColumns = (openTracks: (userId: string, name: string) => void): Memb
     width: 150,
     cell: ({ row }) => (row.leftAt ? <span style={{ fontSize: 12 }}>{fmtDateTime(row.leftAt)}</span> : '—'),
   },
-  { colKey: 'count', title: '次数', width: 70, align: 'center' },
-  { colKey: 'distance', title: '距离 (km)', width: 100, align: 'center', cell: ({ row }) => fmtKm(row.distance) },
-  { colKey: 'duration', title: '时长', width: 90, align: 'center', cell: ({ row }) => fmtDuration(row.duration) },
+  { colKey: 'count', title: '次数', width: 70, align: 'center', sorter: true },
+  { colKey: 'distance', title: '距离 (km)', width: 100, align: 'center', sorter: true, cell: ({ row }) => fmtKm(row.distance) },
+  { colKey: 'duration', title: '时长', width: 90, align: 'center', sorter: true, cell: ({ row }) => fmtDuration(row.duration) },
   {
     colKey: 'excludedCount',
     title: '异常排除',
@@ -114,15 +115,27 @@ export default function CampaignDetailPage() {
   const [error, setError] = useState('')
   const [tracksTarget, setTracksTarget] = useState<{ userId: string; name: string } | null>(null)
   const [memberPage, setMemberPage] = useState(1)
+  // 成员表排序交给服务端（排完再分页），前端只记当前表头状态；默认加入时间升序。
+  // 不用 TDesign 的 TableSort：它是 SortInfo | SortInfo[] 联合，取值要先窄化
+  const [memberSort, setMemberSort] = useState<{ sortBy: string; descending: boolean }>({
+    sortBy: 'joinedAt',
+    descending: false,
+  })
   const pageSize = 20
   const chartRef = useRef<HTMLDivElement | null>(null)
   const chart = useRef<echarts.ECharts | null>(null)
 
-  const load = async (page = 1) => {
+  const load = async (page = 1, s = memberSort) => {
     setLoading(true)
     setError('')
     try {
-      const d = await adminApi.campaignDetail(id, page, pageSize)
+      const d = await adminApi.campaignDetail(
+        id,
+        page,
+        pageSize,
+        s.sortBy ?? '',
+        s.descending ? 'desc' : 'asc',
+      )
       setDetail(d)
       setMemberPage(d.membersPage || page)
     } catch (e) {
@@ -285,6 +298,14 @@ export default function CampaignDetailPage() {
               rowKey="rowId"
               data={toMemberRows(detail.members)}
               columns={memberColumns((uid, name) => setTracksTarget({ userId: uid, name }))}
+              sort={memberSort}
+              onSortChange={(s) => {
+                const one = Array.isArray(s) ? s[0] : s
+                const next = { sortBy: one?.sortBy ?? '', descending: !!one?.descending }
+                setMemberSort(next)
+                setMemberPage(1)
+                load(1, next)
+              }}
               pagination={{
                 total: detail.membersTotal,
                 current: detail.membersPage,

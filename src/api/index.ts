@@ -457,8 +457,10 @@ export const adminApi = {
       `/admin/campaigns?page=${page}&pageSize=${pageSize}${qs ? `&${qs}` : ''}`,
     )
   },
-  campaignDetail: (id: string, page = 1, pageSize = 20) =>
-    request<CampaignDetail>(`/admin/campaigns/${id}?page=${page}&pageSize=${pageSize}`),
+  campaignDetail: (id: string, page = 1, pageSize = 20, sortBy = '', order = '') =>
+    request<CampaignDetail>(
+      `/admin/campaigns/${id}?page=${page}&pageSize=${pageSize}${sortBy ? `&sortBy=${sortBy}` : ''}${order ? `&order=${order}` : ''}`,
+    ),
   // 成员轨迹弹窗：归属（计入/搭车/漂移/未完成/活动外）由服务端按成员全部贡献时段判
   campaignMemberActivities: (
     campaignId: string,
