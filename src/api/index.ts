@@ -582,6 +582,8 @@ export interface PointsOverview {
   rolledBack: number
   /** 净发放 = earnedGross − rolledBack */
   earnedNet: number
+  /** 发放人数：有 delta > 0 流水的 distinct userId */
+  earnedUsers: number
   /** 兑换消耗：Σ |delta| (type = exchange) */
   spentExchange: number
   /** 过期回收：Σ |delta| (type = expire) */

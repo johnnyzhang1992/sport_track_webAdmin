@@ -11,6 +11,7 @@ import {
 } from '../api'
 import RangeButtons from '../components/RangeButtons'
 import UserAvatar from '../components/UserAvatar'
+import PointsUserDialog from '../components/PointsUserDialog'
 import { chartColors, onThemeChange } from '../utils/theme'
 import { fmtDateTime } from '../utils/format'
 
@@ -46,7 +47,7 @@ export default function Points() {
   const [keyword, setKeyword] = useState('')
   const [sort, setSort] = useState<TableSort>({ sortBy: 'balance', descending: true })
 
-  // 行点击的详情：Task 12 的 <PointsUserDialog> 挂载点，组件就绪前只记录点击行
+  // 行点击的详情弹窗（PointsUserDialog）：记录点击行，关闭时清空即卸载
   const [detail, setDetail] = useState<{ id: string; nickname: string } | null>(null)
 
   useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
@@ -177,7 +178,7 @@ export default function Points() {
   const overviewItems = [
     { label: '累计发放（净）', value: fmtNum(overview?.earnedNet) },
     { label: '当前流通', value: fmtNum(overview?.balance) },
-    { label: '持卡未使用', value: fmtNum(overview?.cardsUnusedUsers) },
+    { label: '发放人数', value: fmtNum(overview?.earnedUsers) },
     { label: '今日签到', value: fmtNum(overview?.todaySigninUsers) },
     { label: '近7天签到', value: fmtNum(overview?.weekSigninUsers) },
     { label: '累计签到', value: fmtNum(overview?.totalSigninUsers) },
@@ -185,7 +186,7 @@ export default function Points() {
 
   return (
     <>
-      {/* 积分概况：净发放 / 流通 / 持卡未使用 + 今日 / 近 7 天 / 累计签到 */}
+      {/* 积分概况：净发放 / 流通 / 发放人数 + 今日 / 近 7 天 / 累计签到 */}
       <Card className="page-card" title="积分概况" style={{ marginBottom: 16 }}>
         <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
           {overviewItems.map((it) => (
@@ -227,6 +228,7 @@ export default function Points() {
           <Button theme="primary" onClick={handleSearch}>搜索</Button>
         </Space>
         <Table
+          className="clickable-rows"
           data={data}
           rowKey="id"
           loading={loading}
@@ -311,8 +313,15 @@ export default function Points() {
         />
       </Card>
 
-      {/* Task 12：行点击详情弹窗（PointsUserDialog）挂载点 —— 组件就绪前不渲染任何内容 */}
-      {detail && <></>}
+      {/* 行点击详情弹窗：组件随 detail 卸载，重开即回到第一页 / 默认 Tab */}
+      {detail && (
+        <PointsUserDialog
+          visible
+          userId={detail.id}
+          nickname={detail.nickname}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </>
   )
 }
