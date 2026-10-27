@@ -12,6 +12,7 @@ import CampaignDetailPage from './pages/CampaignDetail'
 import Leaderboard from './pages/Leaderboard'
 import Topics from './pages/Topics'
 import Notifications from './pages/Notifications'
+import Points from './pages/Points'
 import { getToken, setToken, saveUsername, adminApi } from './api'
 
 function LoginPage() {
@@ -100,6 +101,7 @@ export default function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/users/:id" element={<UserDetail />} />
+                <Route path="/points" element={<Points />} />
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/footprints" element={<Footprints />} />
                 <Route path="/campaigns" element={<Campaigns />} />

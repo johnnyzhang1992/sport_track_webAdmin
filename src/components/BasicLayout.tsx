@@ -6,6 +6,7 @@ import {
   ArrowLineRight,
   Bell,
   ChartLineUp,
+  Coin,
   Footprints,
   List,
   MapTrifold,
@@ -27,6 +28,7 @@ const MENU_COLLAPSED_KEY = 'adminMenuCollapsed'
 const MENUS = [
   { value: '/dashboard', label: '数据概览', icon: <ChartLineUp size={18} /> },
   { value: '/users', label: '用户管理', icon: <Users size={18} /> },
+  { value: '/points', label: '积分管理', icon: <Coin size={18} /> },
   { value: '/activities', label: '轨迹管理', icon: <MapTrifold size={18} /> },
   { value: '/footprints', label: '足迹管理', icon: <Footprints size={18} /> },
   { value: '/campaigns', label: '一起运动活动', icon: <UsersThree size={18} /> },
