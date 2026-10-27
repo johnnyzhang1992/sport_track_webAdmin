@@ -3,6 +3,8 @@ import {
   Button,
   Card,
   Dialog,
+  DialogPlugin,
+  Input,
   InputNumber,
   MessagePlugin,
   Select,
@@ -19,6 +21,8 @@ import {
   type PointItemRow,
   type PointItemStockState,
   type PointItemsOverview,
+  type PointOrderRow,
+  type PointOrderStatus,
 } from '../api'
 import PointsItemFormDialog from '../components/PointsItemFormDialog'
 import PointsGrantDialog from '../components/PointsGrantDialog'
@@ -41,6 +45,23 @@ const CARD_STATUS_THEME: Record<string, 'primary' | 'default' | 'danger'> = {
   used: 'default',
   expired: 'danger',
 }
+
+/** 订单状态 Tag 配色：待发货要显眼（那是欠着用户的货），已发货中性，已完成弱化 */
+const ORDER_STATUS_THEME: Record<PointOrderStatus, 'warning' | 'primary' | 'default'> = {
+  pending_ship: 'warning',
+  shipped: 'primary',
+  completed: 'default',
+}
+
+const ORDER_STATUS_OPTIONS = [
+  { label: '全部状态', value: '' },
+  { label: '待发货', value: 'pending_ship' },
+  { label: '已发货', value: 'shipped' },
+  { label: '已完成', value: 'completed' },
+]
+
+/** 快递公司常用几家给下拉；不在表里的填「其他」并在单号前带上公司名（单号本身不解析） */
+const TRACKING_COMPANIES = ['顺丰', '京东物流', '中通', '圆通', '申通', '韵达', '邮政EMS', '其他']
 
 /** 效果列：makeup 是补签卡；ad_free 必须把天数写出来（天数来自目录快照） */
 const effectText = (row: PointItemRow) =>
@@ -133,6 +154,94 @@ export default function PointsItems() {
       alive = false
     }
   }, [tab, issPage, issSource, issItemKey, issReload])
+
+  // 实物订单（服务端分页；状态 + 昵称/UID 关键词筛选）
+  const [orders, setOrders] = useState<PointOrderRow[]>([])
+  const [ordTotal, setOrdTotal] = useState(0)
+  const [ordPage, setOrdPage] = useState(1)
+  const [ordLoading, setOrdLoading] = useState(false)
+  const [ordStatus, setOrdStatus] = useState('')
+  /** 输入框里的值：按回车或点「搜索」才提交，否则每敲一个字就打一次接口 */
+  const [ordKeyword, setOrdKeyword] = useState('')
+  const [ordQuery, setOrdQuery] = useState('')
+  const [ordReload, setOrdReload] = useState(0)
+  // 发货弹窗（快递公司 + 单号）与订单详情（收货地址全字段）
+  const [ship, setShip] = useState<{ row: PointOrderRow; company: string; no: string } | null>(null)
+  const [shipSaving, setShipSaving] = useState(false)
+  const [orderDetail, setOrderDetail] = useState<PointOrderRow | null>(null)
+
+  useEffect(() => {
+    if (tab !== 'orders') return
+    let alive = true
+    setOrdLoading(true)
+    adminApi
+      .pointOrders({
+        page: ordPage,
+        pageSize: PAGE_SIZE,
+        status: ordStatus || undefined,
+        keyword: ordQuery || undefined,
+      })
+      .then((d) => {
+        if (!alive) return
+        setOrders(d.items)
+        setOrdTotal(d.total)
+      })
+      .catch((e) => MessagePlugin.error((e as Error).message))
+      .finally(() => {
+        if (alive) setOrdLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [tab, ordPage, ordStatus, ordQuery, ordReload])
+
+  const loadOrders = () => setOrdReload((n) => n + 1)
+
+  const doShip = async () => {
+    if (!ship) return
+    const no = ship.no.trim()
+    if (!ship.company) {
+      MessagePlugin.warning('请选择快递公司')
+      return
+    }
+    if (!no) {
+      MessagePlugin.warning('请填写快递单号（用户在小程序订单里就看这一串）')
+      return
+    }
+    setShipSaving(true)
+    try {
+      const row = await adminApi.shipPointOrder(ship.row.id, { trackingNo: no, trackingCompany: ship.company })
+      MessagePlugin.success(`已发货 · ${row.trackingCompany} ${row.trackingNo}`)
+      setShip(null)
+      loadOrders()
+    } catch (e) {
+      MessagePlugin.error((e as Error).message)
+    } finally {
+      setShipSaving(false)
+    }
+  }
+
+  /** 代确认收货：货已签收但用户没点确认时由客服代收，状态不可逆，所以走确认弹窗 */
+  const doComplete = (row: PointOrderRow) => {
+    const dialog = DialogPlugin.confirm({
+      header: '代确认收货',
+      body: `确定代「${row.nickname || `UID ${row.uid}` }」确认收货吗？确认后订单变成已完成，不可撤销`,
+      confirmBtn: { content: '代确认', theme: 'danger' },
+      // 命令式弹窗不会自己关：取消和右上角 X 必须显式 destroy
+      onCancel: () => dialog.destroy(),
+      onClose: () => dialog.destroy(),
+      onConfirm: async () => {
+        try {
+          await adminApi.completePointOrder(row.id)
+          MessagePlugin.success('已代确认收货')
+          dialog.destroy()
+          loadOrders()
+        } catch (e) {
+          MessagePlugin.error((e as Error).message)
+        }
+      },
+    })
+  }
 
   /** 道具/库存/发放变动后：目录与概况一起刷新（概况数字由 api 聚合，不能前端自增） */
   const refresh = () => {
@@ -324,20 +433,54 @@ export default function PointsItems() {
                   ),
                 },
                 {
-                  colKey: 'price',
-                  title: '价格',
-                  width: 76,
-                  align: 'right',
-                  cell: ({ row }: { row: PointItemRow }) => row.price.toLocaleString(),
+                  // 实物/虚拟一眼分层：实物走订单发货，虚拟发卡到账户，运营在列表上就要看错行
+                  colKey: 'kind',
+                  title: '类型',
+                  width: 96,
+                  cell: ({ row }: { row: PointItemRow }) => (
+                    <div style={{ minWidth: 0 }}>
+                      <Tag theme={row.kind === 'physical' ? 'warning' : 'default'} variant="light">
+                        {row.kind === 'physical' ? '实物' : '虚拟'}
+                      </Tag>
+                      {row.kind === 'physical' && (
+                        <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 2 }}>
+                          {row.perUserLimit > 0 ? `限购 ${row.perUserLimit} 件` : '限购 不限'}
+                        </div>
+                      )}
+                    </div>
+                  ),
                 },
                 {
+                  colKey: 'price',
+                  title: '价格',
+                  width: 96,
+                  align: 'right',
+                  cell: ({ row }: { row: PointItemRow }) => (
+                    <div style={{ minWidth: 0 }}>
+                      <div>{row.price.toLocaleString()}</div>
+                      {/* 实物按元录入（1 元 = 100 分），列表把元带上，运营不用自己心算 28,900 是多少钱 */}
+                      {row.kind === 'physical' && (
+                        <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>
+                          {(row.price / 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 })} 元
+                        </div>
+                      )}
+                    </div>
+                  ),
+                },
+                {
+                  // 实物不发卡，validDays 与效果都用不上（表单里也是隐藏的）：列表出 '—' 而不是「30 天 / 补签」
                   colKey: 'validDays',
                   title: '卡有效期',
                   width: 88,
                   align: 'right',
-                  cell: ({ row }: { row: PointItemRow }) => `${row.validDays} 天`,
+                  cell: ({ row }: { row: PointItemRow }) => (row.kind === 'physical' ? '—' : `${row.validDays} 天`),
                 },
-                { colKey: 'effect', title: '效果', width: 100, cell: ({ row }: { row: PointItemRow }) => effectText(row) },
+                {
+                  colKey: 'effect',
+                  title: '效果',
+                  width: 100,
+                  cell: ({ row }: { row: PointItemRow }) => (row.kind === 'physical' ? '—' : effectText(row)),
+                },
                 {
                   colKey: 'stock',
                   title: '库存',
@@ -484,6 +627,146 @@ export default function PointsItems() {
               }}
             />
           </Tabs.TabPanel>
+
+          <Tabs.TabPanel value="orders" label="实物订单">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, margin: '4px 0 12px' }}>
+              <Input
+                value={ordKeyword}
+                placeholder="搜索昵称 / UID"
+                style={{ width: 200 }}
+                onChange={(v) => setOrdKeyword(String(v))}
+                onEnter={() => {
+                  setOrdPage(1)
+                  setOrdQuery(ordKeyword.trim())
+                }}
+              />
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setOrdPage(1)
+                  setOrdQuery(ordKeyword.trim())
+                }}
+              >
+                搜索
+              </Button>
+              <Select
+                value={ordStatus}
+                style={{ width: 140 }}
+                options={ORDER_STATUS_OPTIONS}
+                onChange={(v) => {
+                  setOrdStatus(String(v ?? ''))
+                  setOrdPage(1)
+                }}
+              />
+            </div>
+            <Table
+              rowKey="id"
+              data={orders}
+              loading={ordLoading}
+              empty="暂无实物订单"
+              columns={[
+                { colKey: 'createdAt', title: '下单时间', width: 160, cell: ({ row }: { row: PointOrderRow }) => fmtDateTime(row.createdAt) },
+                {
+                  colKey: 'user',
+                  title: '用户',
+                  width: 140,
+                  ellipsis: true,
+                  cell: ({ row }: { row: PointOrderRow }) => (
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.nickname || '微信用户'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>UID {row.uid || '—'}</div>
+                    </div>
+                  ),
+                },
+                {
+                  colKey: 'itemName',
+                  title: '商品',
+                  width: 150,
+                  ellipsis: true,
+                  cell: ({ row }: { row: PointOrderRow }) => row.itemName || row.itemKey || '—',
+                },
+                {
+                  colKey: 'cost',
+                  title: '实付',
+                  width: 84,
+                  align: 'right',
+                  cell: ({ row }: { row: PointOrderRow }) => row.cost.toLocaleString(),
+                },
+                {
+                  colKey: 'receiver',
+                  title: '收货人',
+                  width: 130,
+                  cell: ({ row }: { row: PointOrderRow }) => (
+                    <div style={{ minWidth: 0 }}>
+                      <div>{row.receiver || '—'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>{row.phoneMasked || '—'}</div>
+                    </div>
+                  ),
+                },
+                {
+                  colKey: 'detail',
+                  title: '详细地址',
+                  ellipsis: true,
+                  // 列表只给一行 + 省略号，完整地址在「详情」里看（手机号接口侧已打码）
+                  cell: ({ row }: { row: PointOrderRow }) => (
+                    <span title={row.detail}>{row.detail || '—'}</span>
+                  ),
+                },
+                {
+                  colKey: 'status',
+                  title: '状态',
+                  width: 84,
+                  cell: ({ row }: { row: PointOrderRow }) => (
+                    <Tag theme={ORDER_STATUS_THEME[row.status] ?? 'default'} variant="light">
+                      {row.statusText}
+                    </Tag>
+                  ),
+                },
+                {
+                  colKey: 'tracking',
+                  title: '物流',
+                  width: 170,
+                  ellipsis: true,
+                  cell: ({ row }: { row: PointOrderRow }) =>
+                    row.trackingNo ? `${row.trackingCompany ? `${row.trackingCompany} · ` : ''}${row.trackingNo}` : '—',
+                },
+                {
+                  colKey: 'op',
+                  title: '操作',
+                  width: 160,
+                  cell: ({ row }: { row: PointOrderRow }) => (
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Button variant="text" theme="primary" size="small" onClick={() => setOrderDetail(row)}>
+                        详情
+                      </Button>
+                      {row.status === 'pending_ship' && (
+                        <Button
+                          variant="text"
+                          theme="primary"
+                          size="small"
+                          onClick={() => setShip({ row, company: row.trackingCompany || '顺丰', no: '' })}
+                        >
+                          发货
+                        </Button>
+                      )}
+                      {row.status === 'shipped' && (
+                        <Button variant="text" theme="primary" size="small" onClick={() => doComplete(row)}>
+                          代确认
+                        </Button>
+                      )}
+                    </div>
+                  ),
+                },
+              ]}
+              pagination={{
+                total: ordTotal,
+                current: ordPage,
+                pageSize: PAGE_SIZE,
+                showJumper: true,
+                onChange: (info) => setOrdPage(info.current),
+              }}
+            />
+          </Tabs.TabPanel>
         </Tabs>
       </Card>
 
@@ -539,6 +822,86 @@ export default function PointsItems() {
               />
               <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>开启后兑换/发放不扣库存</span>
             </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 发货：只允许 待发货 → 已发货；重复点第二次 api 回 400 点名当前状态 */}
+      <Dialog
+        header={ship ? `发货 · ${ship.row.itemName || ship.row.itemKey}` : '发货'}
+        visible={ship != null}
+        width={460}
+        confirmBtn={{ content: '确认发货', theme: 'primary', loading: shipSaving }}
+        onCancel={() => setShip(null)}
+        onClose={() => setShip(null)}
+        onConfirm={doShip}
+      >
+        {ship && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 84, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)' }}>快递公司</span>
+              <Select
+                value={ship.company}
+                style={{ flex: 1 }}
+                options={TRACKING_COMPANIES.map((c) => ({ label: c, value: c }))}
+                onChange={(v) => setShip({ ...ship, company: String(v) })}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 84, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)' }}>快递单号</span>
+              <Input
+                value={ship.no}
+                placeholder="如 SF1234567890"
+                style={{ flex: 1 }}
+                onChange={(v) => setShip({ ...ship, no: String(v) })}
+              />
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', paddingLeft: 94 }}>
+              收货人 {ship.row.receiver} {ship.row.phoneMasked} · {ship.row.detail}
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* 订单详情：地址与物流全字段（列表是省略号，这里看完整） */}
+      <Dialog
+        header={orderDetail ? `订单详情 · ${orderDetail.itemName || orderDetail.itemKey}` : '订单详情'}
+        visible={orderDetail != null}
+        width={560}
+        footer={false}
+        onClose={() => setOrderDetail(null)}
+      >
+        {orderDetail && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Tag theme={ORDER_STATUS_THEME[orderDetail.status] ?? 'default'} variant="light">
+                {orderDetail.statusText}
+              </Tag>
+              <span style={{ color: 'var(--td-text-color-placeholder, #8a93a6)', fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>
+                {orderDetail.id}
+              </span>
+            </div>
+            {[
+              { label: '用户', value: `${orderDetail.nickname || '微信用户'}（UID ${orderDetail.uid || '—'}）` },
+              { label: '商品', value: orderDetail.itemName || orderDetail.itemKey || '—' },
+              { label: '实付积分', value: orderDetail.cost.toLocaleString() },
+              { label: '收货人', value: `${orderDetail.receiver || '—'} ${orderDetail.phoneMasked || '—'}` },
+              { label: '收货地址', value: orderDetail.detail || '—' },
+              { label: '下单时间', value: fmtDateTime(orderDetail.createdAt) },
+              { label: '发货时间', value: orderDetail.shippedAt ? fmtDateTime(orderDetail.shippedAt) : '—' },
+              { label: '完成时间', value: orderDetail.completedAt ? fmtDateTime(orderDetail.completedAt) : '—' },
+              {
+                label: '物流',
+                value: orderDetail.trackingNo
+                  ? `${orderDetail.trackingCompany || '—'} ${orderDetail.trackingNo}`
+                  : '未发货',
+              },
+            ].map((it) => (
+              <div key={it.label} style={{ display: 'flex', gap: 10 }}>
+                <span style={{ width: 72, flexShrink: 0, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>{it.label}</span>
+                <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-all' }}>{it.value}</span>
+              </div>
+            ))}
           </div>
         )}
       </Dialog>

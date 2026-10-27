@@ -549,7 +549,7 @@ export const adminApi = {
   pointsItems: () => request<PointItemRow[]>('/admin/points/items'),
   createPointItem: (input: PointItemInput) =>
     request<SavedPointItemRow>('/admin/points/items', { method: 'POST', body: input }),
-  // PUT 覆盖整行内容：十个内容字段必传（缺一个 400），stock/unlimited 一律不写
+  // PUT 覆盖整行内容：十三个内容字段必传（缺一个 400 点名），stock/unlimited 一律不写
   updatePointItem: (id: string, input: PointItemInput) =>
     request<SavedPointItemRow>(`/admin/points/items/${id}`, { method: 'PUT', body: input }),
   // 库存改写传目标值不是增量，回执是两个字段各自的 {before, after}
@@ -570,8 +570,22 @@ export const adminApi = {
     return request<PointIssuanceList>(`/admin/points/issuances?${p}`)
   },
   pointItemsOverview: () => request<PointItemsOverview>('/admin/points/items/overview'),
-  // 免广告名单：全后台唯一下发 openid 的出口（导出人群包用）
+  // 免广告名单：积分域内唯一下发 openid 的出口（导出人群包用）
   adFreeRoster: () => request<AdFreeRosterRow[]>('/admin/points/ad-free/roster'),
+  // ===== 实物订单（兑换实物商品产生的发货单）=====
+  // 列表只下发打码手机号；完整号码要在订单详情里看（这里就是同一行数据，不额外脱敏第二次）
+  pointOrders: (q: { status?: string; keyword?: string; page?: number; pageSize?: number } = {}) => {
+    const p = new URLSearchParams({ page: String(q.page ?? 1), pageSize: String(q.pageSize ?? 20) })
+    if (q.status) p.set('status', q.status)
+    if (q.keyword) p.set('keyword', q.keyword)
+    return request<PointOrderList>(`/admin/points/orders?${p}`)
+  },
+  // 发货：只允许 待发货 → 已发货，重复点第二次 api 回 400 点名当前状态
+  shipPointOrder: (id: string, input: { trackingNo: string; trackingCompany?: string }) =>
+    request<PointOrderRow>(`/admin/points/orders/${id}/ship`, { method: 'PATCH', body: input }),
+  // 代确认收货：用户忘了点确认时由客服代收，只允许 已发货 → 已完成
+  completePointOrder: (id: string) =>
+    request<PointOrderRow>(`/admin/points/orders/${id}/complete`, { method: 'PATCH' }),
 }
 
 /** 积分概况（GET /admin/points/overview）：全部按 PointRecord.type 聚合，没有 totalSpent */
@@ -696,7 +710,10 @@ export interface PointsUserCardRow {
 
 export type PointItemEffectKind = 'makeup' | 'ad_free'
 
-/** 道具入参：新建时除 key/name/price/validDays/effect 外可省略；PUT 的十个内容字段全必传 */
+/** 道具类型：virtual = 发卡到账户（补签卡/免广告卡）；physical = 实物商品，兑换即生成待发货订单 */
+export type PointItemKind = 'virtual' | 'physical'
+
+/** 道具入参：新建时除 key/name/price/validDays/effect 外可省略；PUT 的十三个内容字段全必传 */
 export interface PointItemInput {
   key: string
   name: string
@@ -706,6 +723,12 @@ export interface PointItemInput {
   price: number
   validDays: number
   effect: { kind: PointItemEffectKind; days: number }
+  /** 省略 = virtual */
+  kind?: PointItemKind
+  /** 实物详情图（入库裸链，最多 6 张）；省略 = 空数组 */
+  detailImages?: string[]
+  /** 每人限购张数，0 = 不限；实物新建默认 1，虚拟默认 0 */
+  perUserLimit?: number
   stock?: number
   unlimited?: boolean
   active?: boolean
@@ -725,6 +748,13 @@ export interface PointItemRow {
   price: number
   validDays: number
   effect: { kind: PointItemEffectKind; days: number }
+  kind: PointItemKind
+  /** 入库裸链（回填表单时写回它） */
+  detailImages: string[]
+  /** 与 detailImages 一一对应的签名缩略链：<img> 只能用这个，裸链直连 403 */
+  detailPreviewUrls: string[]
+  /** 0 = 不限购 */
+  perUserLimit: number
   stock: number
   unlimited: boolean
   active: boolean
@@ -786,8 +816,7 @@ export interface PointIssuanceRow {
   note: string
 }
 
-export interface PointIssuanceQuery {
-  itemKey?: string
+export interface PointIssuanceQuery {  itemKey?: string
   source?: string
   userId?: string
   /** 持卡人昵称或 UID */
@@ -1060,4 +1089,39 @@ export interface FootprintGeoStats {
     count: number
     cities: { city: string; count: number }[]
   }[]
+}
+
+/** 实物订单状态机：待发货 →（后台发货）已发货 →（用户确认或后台代确认）已完成 */
+export type PointOrderStatus = 'pending_ship' | 'shipped' | 'completed'
+
+/** 订单行（GET /admin/points/orders）：地址三件套下单时快照，改地址不影响历史单 */
+export interface PointOrderRow {
+  id: string
+  userId: string
+  uid: number
+  nickname: string
+  itemKey: string
+  /** 商品名快照（目录改名不影响历史单读得懂） */
+  itemName: string
+  /** 下单时实付积分 */
+  cost: number
+  receiver: string
+  /** 打码手机号（列表不出完整号码） */
+  phoneMasked: string
+  /** 详细地址 */
+  detail: string
+  status: PointOrderStatus
+  statusText: string
+  trackingNo: string
+  trackingCompany: string
+  createdAt: number
+  shippedAt: number
+  completedAt: number
+}
+
+export interface PointOrderList {
+  total: number
+  page: number
+  pageSize: number
+  items: PointOrderRow[]
 }
