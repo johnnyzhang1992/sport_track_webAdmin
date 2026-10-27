@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Dialog, MessagePlugin, Select, Table, Tabs, Tag } from 'tdesign-react'
 import {
   adminApi,
@@ -20,7 +20,7 @@ const PAGE_SIZE = 20
 /** 未加载显示 '—'（0 是「真的是零」，两者不能混） */
 const fmtNum = (v: number | undefined) => (v === undefined ? '—' : v.toLocaleString())
 
-/** 到期时刻只到天：弹窗里这一格要放得下四个字「免广告到期」的值 */
+/** 到期时刻只到天：概况格是「标签左 · 数值右」一行，日期要能在 198px 格里和五个字并排放下 */
 const fmtDay = (ts: number) => new Date(ts).toLocaleDateString('zh-CN')
 
 /**
@@ -66,7 +66,7 @@ function cardUsage(row: PointsUserCardRow): string {
 /**
  * 用户积分详情弹窗（Task 12）：
  * 顶部概况 8 格全部取 /admin/points/users/:id 的字段，前端不另算；
- * 「积分明细」与「道具记录」各自分页，表体在弹窗内部滚（maxHeight），页面本身不滚。
+ * 弹窗整体不滚，只有表体滚 —— 表高由下面 tableMax 实测（见 measure）。
  */
 export default function PointsUserDialog({ visible, userId, nickname, onClose }: Props) {
   const [detail, setDetail] = useState<PointsUserDetail | null>(null)
@@ -151,6 +151,48 @@ export default function PointsUserDialog({ visible, userId, nickname, onClose }:
 
   const cardRows = (cards ?? []).slice((cardPage - 1) * PAGE_SIZE, cardPage * PAGE_SIZE)
 
+  // 表体可用高度实测：TDesign 把 maxHeight 只加在 `.t-table__content` 上，表头在内、分页条在外，
+  // 所以「弹窗内边距底 − 表格框顶 − 分页条高」才是表体能占的空间。
+  // 写死 calc(85vh - 320px) 会算少上方占位，表格就顶出弹窗、整个弹窗自己滚起来了。
+  //
+  // 弹窗内容是 TDesign 在自己的 effect 里挂进 body 的，visible 翻 true 那次提交里表格框还不存在，
+  // 所以观察器不能放 useEffect，得由回调 ref 在节点真正出现时建立。
+  // 切 Tab 时上方多了/少了筛选行、弹窗尺寸却不一定会变（观察器可能不触发），所以给容器挂 key={tab} 强制重挂重算。
+  const [tableMax, setTableMax] = useState(0)
+  const boxObserver = useRef<ResizeObserver | null>(null)
+  useEffect(() => () => boxObserver.current?.disconnect(), [])
+  const attachTableBox = useCallback(
+    (box: HTMLDivElement | null) => {
+      boxObserver.current?.disconnect()
+      boxObserver.current = null
+      const dialog = box?.closest('.t-dialog')
+      const body = box?.closest('.t-dialog__body')
+      if (!box || !dialog || !body) return
+      const measure = () => {
+        const dcs = getComputedStyle(dialog)
+        // 只用 offset* + computed maxHeight：弹窗入场动画会给自己加 scale transform，
+        // 用 getBoundingClientRect 量到的是缩放中的尺寸；用 dialog.clientHeight 则会被上一次裁出来的
+        // 矮表格带偏（表格只有拿到上限才会长满，于是越量越矮）。computed maxHeight 是纯几何，不受内容影响。
+        const innerBottom =
+          parseFloat(dcs.maxHeight) -
+          parseFloat(dcs.borderTopWidth) -
+          parseFloat(dcs.borderBottomWidth) -
+          parseFloat(dcs.paddingBottom) -
+          parseFloat(getComputedStyle(body).paddingBottom)
+        const pag = box.querySelector<HTMLElement>('.t-table__pagination')
+        const pagH = pag ? pag.offsetHeight : 0
+        // .t-dialog 是 position:relative，静态定位的表格框的 offsetTop 就是它到弹窗内边距顶的距离
+        setTableMax(Math.max(120, Math.floor(innerBottom - box.offsetTop - pagH)))
+      }
+      measure()
+      // 视口尺寸、数据行数都会改变弹窗的盒，观察弹窗就都能跟着重算
+      const ro = new ResizeObserver(measure)
+      ro.observe(dialog)
+      boxObserver.current = ro
+    },
+    [],
+  )
+
   return (
     <Dialog
       visible={visible}
@@ -158,43 +200,66 @@ export default function PointsUserDialog({ visible, userId, nickname, onClose }:
       width={880}
       footer={false}
       destroyOnClose
-      style={{ maxHeight: '85vh' }}
+      // 挂在 .t-dialog__ctx 上：index.css 里据此把这一个弹窗的上下留白压到 24px，配合下面的高度用满视口
+      className="points-user-dialog-ctx"
+      // 视口高 − 上下各 24px 留白（见 index.css 的 .points-user-dialog-ctx）；再高就会撑出遮罩层的滚动
+      style={{ maxHeight: 'calc(100vh - 48px)' }}
       onClose={onClose}
     >
-      <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 12 }}>
+      <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 }}>
         {cells.map((it) => (
           <div
             key={it.label}
-            style={{ background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)', borderRadius: 8, padding: '10px 12px' }}
+            style={{
+              background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)',
+              borderRadius: 6,
+              padding: '6px 10px',
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: 8,
+              minWidth: 0,
+            }}
           >
-            <div style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{it.value}</div>
-            <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 2 }}>{it.label}</div>
+            <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', whiteSpace: 'nowrap' }}>
+              {it.label}
+            </span>
+            <b style={{ fontSize: 15, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{it.value}</b>
           </div>
         ))}
       </div>
 
+      {/* Tabs 只当导航：面板留空，表格放到下面自己算高度的容器里，免得套一层要跟着算的 flex */}
       <Tabs value={tab} onChange={(v) => setTab(v as string)}>
-        <Tabs.TabPanel value="records" label="积分明细">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>类型</span>
-            <Select
-              size="small"
-              style={{ width: 180 }}
-              value={recType}
-              options={RECORD_TYPE_OPTIONS}
-              onChange={(v) => {
-                setRecType(String(v ?? ''))
-                setRecPage(1)
-              }}
-            />
-          </div>
+        <Tabs.TabPanel value="records" label="积分明细" />
+        <Tabs.TabPanel value="cards" label="道具记录" />
+      </Tabs>
+
+      {tab === 'records' && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>类型</span>
+          <Select
+            size="small"
+            style={{ width: 180 }}
+            value={recType}
+            options={RECORD_TYPE_OPTIONS}
+            onChange={(v) => {
+              setRecType(String(v ?? ''))
+              setRecPage(1)
+            }}
+          />
+        </div>
+      )}
+
+      <div key={tab} ref={attachTableBox}>
+        {tab === 'records' ? (
           <Table
             rowKey="id"
             size="small"
             data={records?.items ?? []}
             loading={recLoading}
             empty="暂无积分明细"
-            maxHeight="calc(85vh - 320px)"
+            maxHeight={tableMax || undefined}
             columns={[
               { colKey: 'createdAt', title: '时间', width: 150, cell: ({ row }) => fmtDateTime(row.createdAt) },
               {
@@ -235,16 +300,14 @@ export default function PointsUserDialog({ visible, userId, nickname, onClose }:
               onChange: (info) => setRecPage(info.current),
             }}
           />
-        </Tabs.TabPanel>
-
-        <Tabs.TabPanel value="cards" label="道具记录">
+        ) : (
           <Table
             rowKey="id"
             size="small"
             data={cardRows}
             loading={cardLoading}
             empty="暂无道具记录"
-            maxHeight="calc(85vh - 320px)"
+            maxHeight={tableMax || undefined}
             columns={[
               { colKey: 'itemName', title: '道具', width: 100, ellipsis: true, cell: ({ row }) => row.itemName || row.itemKey || '—' },
               { colKey: 'sourceText', title: '来源', width: 72 },
@@ -279,8 +342,8 @@ export default function PointsUserDialog({ visible, userId, nickname, onClose }:
               onChange: (info) => setCardPage(info.current),
             }}
           />
-        </Tabs.TabPanel>
-      </Tabs>
+        )}
+      </div>
     </Dialog>
   )
 }

@@ -247,6 +247,11 @@ body {
 .t-dialog__position.t-dialog--top {
   padding-top: 10vh !important;
 }
+/* 积分详情弹窗要看得下更多行：上下留白各压到 24px（配合组件里的 calc(100vh - 48px)），只影响这一个弹窗 */
+.points-user-dialog-ctx .t-dialog__position.t-dialog--top {
+  padding-top: 24px !important;
+  padding-bottom: 24px;
+}
 
 /* 深色模式适配 */
 .app-content {
