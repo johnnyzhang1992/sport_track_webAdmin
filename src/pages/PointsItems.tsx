@@ -250,7 +250,7 @@ export default function PointsItems() {
                 新建道具
               </Button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 12, color: '#8a93a6' }}>
+                <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>
                   导出为 We分析「屏蔽人群包」整包替换文件，次日生效
                 </span>
                 <Button variant="outline" loading={exporting} onClick={exportRoster}>
@@ -285,7 +285,7 @@ export default function PointsItems() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#8a93a6',
+                          color: 'var(--td-text-color-placeholder, #8a93a6)',
                           fontWeight: 600,
                         }}
                       >
@@ -301,7 +301,7 @@ export default function PointsItems() {
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 600 }}>{row.name}</div>
                       {row.subtitle && (
-                        <div style={{ fontSize: 12, color: '#8a93a6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {row.subtitle}
                         </div>
                       )}
@@ -398,7 +398,7 @@ export default function PointsItems() {
 
           <Tabs.TabPanel value="issuances" label="发放记录">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 12px' }}>
-              <span style={{ fontSize: 13, color: '#8a93a6' }}>来源</span>
+              <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>来源</span>
               <Select
                 size="small"
                 style={{ width: 150 }}
@@ -409,7 +409,7 @@ export default function PointsItems() {
                   setIssPage(1)
                 }}
               />
-              <span style={{ fontSize: 13, color: '#8a93a6' }}>道具</span>
+              <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>道具</span>
               <Select
                 size="small"
                 style={{ width: 220 }}
@@ -437,7 +437,7 @@ export default function PointsItems() {
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {row.nickname || '微信用户'}
                       </div>
-                      <div style={{ fontSize: 12, color: '#8a93a6' }}>UID {row.uid || '—'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>UID {row.uid || '—'}</div>
                     </div>
                   ),
                 },
@@ -511,7 +511,7 @@ export default function PointsItems() {
         {stockEdit && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: '#4e5969' }}>库存</span>
+              <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)' }}>库存</span>
               <InputNumber
                 value={stockEdit.stock}
                 min={0}
@@ -529,15 +529,15 @@ export default function PointsItems() {
                   })
                 }
               />
-              <span style={{ fontSize: 12, color: '#8a93a6' }}>目标值（不是增量）</span>
+              <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>目标值（不是增量）</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: '#4e5969' }}>不限量</span>
+              <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)' }}>不限量</span>
               <Switch
                 value={stockEdit.unlimited}
                 onChange={(v) => setStockEdit({ ...stockEdit, unlimited: Boolean(v) })}
               />
-              <span style={{ fontSize: 12, color: '#8a93a6' }}>开启后兑换/发放不扣库存</span>
+              <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>开启后兑换/发放不扣库存</span>
             </div>
           </div>
         )}

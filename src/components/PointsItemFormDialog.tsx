@@ -65,7 +65,7 @@ function numOr(v: number | string | undefined, fallback: number): number {
 function Field({ label, children, top }: { label: string; children: ReactNode; top?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: top ? 'flex-start' : 'center', gap: 10 }}>
-      <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: '#4e5969', paddingTop: top ? 6 : 0 }}>
+      <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)', paddingTop: top ? 6 : 0 }}>
         {label}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
@@ -228,7 +228,7 @@ export default function PointsItemFormDialog({ visible, row, onClose, onSaved }:
                   onChange={(v) => setForm({ ...form, key: v as string })}
                   placeholder="如 ad_free_10d"
                 />
-                {form.id && <span style={{ fontSize: 12, color: '#8a93a6', flexShrink: 0 }}>创建后不可修改</span>}
+                {form.id && <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', flexShrink: 0 }}>创建后不可修改</span>}
               </div>
             </Field>
 
@@ -266,7 +266,7 @@ export default function PointsItemFormDialog({ visible, row, onClose, onSaved }:
                   onChange={(v) => setForm({ ...form, notesText: v as string })}
                   placeholder="一行一条，最多 8 条"
                 />
-                <div style={{ fontSize: 12, color: '#8a93a6', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 4 }}>
                   {splitNotes(form.notesText).length} / 8 条
                 </div>
               </div>
@@ -281,7 +281,7 @@ export default function PointsItemFormDialog({ visible, row, onClose, onSaved }:
                   style={{ width: 160 }}
                   onChange={(v) => setForm({ ...form, price: numOr(v as number | string | undefined, form.price) })}
                 />
-                <span style={{ fontSize: 12, color: '#8a93a6' }}>积分（≥1 的整数）</span>
+                <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>积分（≥1 的整数）</span>
               </div>
             </Field>
 
@@ -294,7 +294,7 @@ export default function PointsItemFormDialog({ visible, row, onClose, onSaved }:
                   style={{ width: 160 }}
                   onChange={(v) => setForm({ ...form, validDays: numOr(v as number | string | undefined, form.validDays) })}
                 />
-                <span style={{ fontSize: 12, color: '#8a93a6' }}>天（兑换后可持有的时长）</span>
+                <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>天（兑换后可持有的时长）</span>
               </div>
             </Field>
 
@@ -315,7 +315,7 @@ export default function PointsItemFormDialog({ visible, row, onClose, onSaved }:
                       style={{ width: 120 }}
                       onChange={(v) => setForm({ ...form, effectDays: numOr(v as number | string | undefined, form.effectDays) })}
                     />
-                    <span style={{ fontSize: 12, color: '#8a93a6' }}>天</span>
+                    <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>天</span>
                   </>
                 )}
               </div>
@@ -351,7 +351,7 @@ export default function PointsItemFormDialog({ visible, row, onClose, onSaved }:
                     清除
                   </Button>
                 )}
-                <span style={{ fontSize: 12, color: '#8a93a6' }}>可选，2MB 以内</span>
+                <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>可选，2MB 以内</span>
               </div>
             </Field>
 
@@ -363,10 +363,10 @@ export default function PointsItemFormDialog({ visible, row, onClose, onSaved }:
                   style={{ width: 120 }}
                   onChange={(v) => setForm({ ...form, sortOrder: numOr(v as number | string | undefined, form.sortOrder) })}
                 />
-                <span style={{ fontSize: 12, color: '#8a93a6' }}>数字小的排在前面</span>
+                <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>数字小的排在前面</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
                   <Switch value={form.active} onChange={(v) => setForm({ ...form, active: Boolean(v) })} />
-                  <span style={{ fontSize: 13, color: '#4e5969' }}>上架</span>
+                  <span style={{ fontSize: 13, color: 'var(--td-text-color-secondary, #4e5969)' }}>上架</span>
                 </span>
               </div>
             </Field>

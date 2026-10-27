@@ -176,7 +176,7 @@ export default function PointsUserDialog({ visible, userId, nickname, onClose }:
       <Tabs value={tab} onChange={(v) => setTab(v as string)}>
         <Tabs.TabPanel value="records" label="积分明细">
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 13, color: '#8a93a6' }}>类型</span>
+            <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>类型</span>
             <Select
               size="small"
               style={{ width: 180 }}

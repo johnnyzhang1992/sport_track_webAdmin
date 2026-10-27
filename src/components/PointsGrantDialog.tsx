@@ -139,7 +139,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-          <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: '#4e5969', paddingTop: 6 }}>用户</span>
+          <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)', paddingTop: 6 }}>用户</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', gap: 8 }}>
               <Input
@@ -163,7 +163,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
                 }}
               >
                 {candidates.length === 0 ? (
-                  <div style={{ padding: 16, textAlign: 'center', fontSize: 13, color: '#8a93a6' }}>没有匹配的用户</div>
+                  <div style={{ padding: 16, textAlign: 'center', fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>没有匹配的用户</div>
                 ) : (
                   candidates.map((u) => (
                     <div
@@ -181,7 +181,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
                       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {u.nickname || '微信用户'}
                       </span>
-                      <span style={{ marginLeft: 'auto', fontSize: 12, color: '#8a93a6', flexShrink: 0 }}>
+                      <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', flexShrink: 0 }}>
                         UID {u.uid || '—'}
                       </span>
                     </div>
@@ -198,14 +198,14 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
                 ))}
               </div>
             )}
-            <div style={{ fontSize: 12, color: '#8a93a6', marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 6 }}>
               已选 {selected.length} 人（UID 按精确号匹配，昵称按子串）
             </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: '#4e5969' }}>每人张数</span>
+          <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)' }}>每人张数</span>
           <InputNumber
             value={count}
             min={1}
@@ -216,7 +216,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: '#4e5969' }}>来源</span>
+          <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)' }}>来源</span>
           <RadioGroup value={source} onChange={(v) => setSource(String(v) as 'admin' | 'system')}>
             <Radio value="admin">手动发放</Radio>
             <Radio value="system">系统赠送</Radio>
@@ -224,7 +224,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: '#4e5969' }}>备注</span>
+          <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)' }}>备注</span>
           <Input
             value={note}
             placeholder="写给台账的说明（可选）"
@@ -237,7 +237,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
           <div
             style={{
               fontSize: 13,
-              color: overStock ? '#e34d59' : need > 0 ? '#e37318' : '#8a93a6',
+              color: overStock ? 'var(--td-error-color, #e34d59)' : need > 0 ? 'var(--td-warning-color, #e37318)' : 'var(--td-text-color-placeholder, #8a93a6)',
               background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)',
               borderRadius: 6,
               padding: '8px 10px',
@@ -254,7 +254,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
         {/* 部分失败的回执：常驻可读、可复制；两个信号各自独立，谁也藏不住谁 */}
         {result && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 13, color: '#4e5969' }}>
+            <div style={{ fontSize: 13, color: 'var(--td-text-color-secondary, #4e5969)' }}>
               本次已发出 <b>{result.granted}</b> 张
               {result.failed.length > 0 ? `，${result.failed.length} 人未发出` : ''}
               。已发出的卡不会回滚，请勿整批重发。
@@ -277,7 +277,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
                     复制失败名单
                   </Button>
                 </div>
-                <div style={{ fontSize: 12, color: '#8a93a6', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 4 }}>
                   已成功的用户已从待发放名单移除，再次确认只会重试下面这些人。
                 </div>
                 <div style={{ maxHeight: 168, overflow: 'auto', marginTop: 6 }}>
@@ -304,7 +304,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
-                            color: '#4e5969',
+                            color: 'var(--td-text-color-secondary, #4e5969)',
                           }}
                         >
                           {u ? `${u.nickname || '微信用户'}${u.uid ? ` · UID ${u.uid}` : ''}` : '—'}
