@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Dialog, Tag, Loading, MessagePlugin, Button } from 'tdesign-react'
 import * as echarts from 'echarts'
 import { adminApi, type ActivityDetail } from '../api'
+import { chartColors, onThemeChange } from '../utils/theme'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtPace, fmtDateTime, haversine } from '../utils/format'
 import {
   getPaceScale,
@@ -33,6 +34,10 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
   const [exporting, setExporting] = useState(false)
   const chartRef = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
+  // 主题切换计数：仅用于触发剖面图重绘（chartColors 要重新取）
+  const [themeV, setThemeV] = useState(0)
+
+  useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
 
   useEffect(() => {
     if (!id) return
@@ -68,12 +73,28 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
     if (data.length < 2) return
 
     if (!chart.current) chart.current = echarts.init(chartRef.current)
+    // 弹窗底色跟随主题，剖面图的坐标轴文字必须一起换色（否则深色模式下是深灰字压深灰底）
+    const c = chartColors()
     chart.current.setOption(
       {
+        textStyle: { color: c.text },
         tooltip: { trigger: 'axis', valueFormatter: (v: number) => `${v} ${useAltitude ? 'm' : 'km/h'}` },
         grid: { left: 44, right: 16, top: 32, bottom: 30 },
-        xAxis: { type: 'category', name: 'km', data: data.map((d) => d[0]), axisLabel: { interval: 'auto' } },
-        yAxis: { type: 'value', name: useAltitude ? '海拔 m' : '速度 km/h' },
+        xAxis: {
+          type: 'category',
+          name: 'km',
+          nameTextStyle: { color: c.text },
+          data: data.map((d) => d[0]),
+          axisLabel: { interval: 'auto', color: c.text },
+          axisLine: { lineStyle: { color: c.axisLine } },
+        },
+        yAxis: {
+          type: 'value',
+          name: useAltitude ? '海拔 m' : '速度 km/h',
+          nameTextStyle: { color: c.text },
+          axisLabel: { color: c.text },
+          splitLine: { lineStyle: { color: c.splitLine } },
+        },
         series: [
           {
             name: useAltitude ? '海拔' : '速度',
@@ -91,7 +112,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
     const onResize = () => chart.current?.resize()
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
-  }, [detail])
+  }, [detail, themeV])
 
   useEffect(
     () => () => {
@@ -173,7 +194,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
             <Tag theme={detail.status === 'finished' ? 'success' : detail.status === 'cancelled' ? 'danger' : 'warning'}>
               {STATUS_LABELS[detail.status] || detail.status}
             </Tag>
-            <span style={{ fontSize: 13, color: '#8a93a6' }}>轨迹 ID：{detail.id}</span>
+            <span style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>轨迹 ID：{detail.id}</span>
           </div>
 
           {/* 指标网格 */}
@@ -182,7 +203,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
               display: 'grid',
               gridTemplateColumns: 'repeat(4, 1fr)',
               gap: '12px 16px',
-              background: '#f8f9fb',
+              background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)',
               borderRadius: 8,
               padding: 16,
               marginBottom: 16,
@@ -190,14 +211,14 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
           >
             {items.map((it) => (
               <div key={it.label}>
-                <div style={{ fontSize: 12, color: '#8a93a6', marginBottom: 2 }}>{it.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', marginBottom: 2 }}>{it.label}</div>
                 <div style={{ fontSize: 13, fontWeight: 500, wordBreak: 'break-all' }}>{it.value}</div>
               </div>
             ))}
           </div>
 
           {detail.note && (
-            <div style={{ marginBottom: 16, padding: '8px 12px', background: '#fffbe6', borderRadius: 6, fontSize: 13 }}>
+            <div style={{ marginBottom: 16, padding: '8px 12px', background: 'var(--td-bg-color-warning-container, #fffbe6)', borderRadius: 6, fontSize: 13 }}>
               备注：{detail.note}
             </div>
           )}
@@ -214,7 +235,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
             {detail.trackPoints.length >= 2 ? (
               <>
                 <TrackMap points={detail.trackPoints} markers={detail.markers} height={360} activityType={detail.type} onExtent={setExtent} />
-                <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12, color: '#8a93a6', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', alignItems: 'center' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#00a870', display: 'inline-block' }} />
                     起点
@@ -239,7 +260,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
                     其余按配速（绝对刻度等分 4 档，慢→快 绿→黄→橙→红）；
                     配速档在无时间戳时 TrackMap 回退单色，此时不出图例 */}
                 {(altitudeLegend || vehicleNotice || detail.trackPoints.some((p) => !!p.timestamp)) && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 12, color: '#8a93a6', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', alignItems: 'center' }}>
                     <span style={{ whiteSpace: 'nowrap' }}>
                       {altitudeLegend ? '海拔低' : `慢 ${fmtPace(getPaceScale(detail.type).slow)}`}
                     </span>
@@ -271,7 +292,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
                 )}
               </>
             ) : (
-              <div style={{ padding: '24px 0', textAlign: 'center', color: '#8a93a6', fontSize: 13, background: '#f8f9fb', borderRadius: 8 }}>
+              <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--td-text-color-placeholder, #8a93a6)', fontSize: 13, background: 'var(--td-bg-color-secondarycontainer, #f8f9fb)', borderRadius: 8 }}>
                 该轨迹无轨迹点数据
               </div>
             )}
@@ -294,7 +315,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
                       display: 'flex',
                       gap: 12,
                       padding: '10px 0',
-                      borderTop: '1px solid #f0f2f5',
+                      borderTop: '1px solid var(--td-component-stroke, #f0f2f5)',
                       alignItems: 'flex-start',
                     }}
                   >
@@ -302,7 +323,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13 }}>
                         {fmtDateTime(m.timestamp)}
-                        {m.note ? <span style={{ marginLeft: 8, color: '#4e5969' }}>{m.note}</span> : null}
+                        {m.note ? <span style={{ marginLeft: 8, color: 'var(--td-text-color-secondary, #4e5969)' }}>{m.note}</span> : null}
                       </div>
                       {photos.length > 0 && (
                         <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -311,7 +332,7 @@ export default function ActivityDetailDialog({ id, onClose }: Props) {
                               key={p}
                               src={p}
                               alt="打点照片"
-                              style={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 6, border: '1px solid #eef0f3' }}
+                              style={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--td-component-stroke, #eef0f3)' }}
                             />
                           ))}
                         </div>

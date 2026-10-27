@@ -10,6 +10,7 @@ import FootprintMap from '../components/FootprintMap'
 import RangeButtons from '../components/RangeButtons'
 import PhotoCell from '../components/PhotoCell'
 import { chartColors, onThemeChange } from '../utils/theme'
+import { hourChartOption } from '../utils/hour-stats'
 
 interface Activity {
   id: string
@@ -178,44 +179,18 @@ export default function Activities() {
       .catch(() => setHourData([]))
   }, [hourRange])
 
-  // 轨迹频率柱状图：X 轴 0–23 时（东八区），Y 轴该小时内开始的已完成轨迹数
+  // 轨迹频率柱状图：X 轴 0–23 时（东八区），柱高＝当前时段的日均轨迹数，合计放 tooltip
   useEffect(() => {
     if (!hourRef.current || hourData.length === 0) return
     if (!hourChart.current) hourChart.current = echarts.init(hourRef.current)
-    const c = chartColors()
     hourChart.current.setOption(
-      {
-        textStyle: { color: c.text },
-        tooltip: { trigger: 'axis' },
-        grid: { left: 48, right: 20, top: 24, bottom: 28 },
-        xAxis: {
-          type: 'category',
-          data: hourData.map((p) => `${p.hour}时`),
-          axisLabel: { color: c.text, interval: 0 },
-          axisLine: { lineStyle: { color: c.axisLine } },
-        },
-        yAxis: {
-          type: 'value',
-          minInterval: 1,
-          axisLabel: { color: c.text },
-          splitLine: { lineStyle: { color: c.splitLine } },
-        },
-        series: [
-          {
-            name: '轨迹数',
-            type: 'bar',
-            barMaxWidth: 22,
-            itemStyle: { color: '#0052d9', borderRadius: [4, 4, 0, 0] },
-            data: hourData.map((p) => p.count),
-          },
-        ],
-      },
+      hourChartOption({ points: hourData, range: hourRange, name: '轨迹数', unit: '条' }),
       true,
     )
     const ro = new ResizeObserver(() => hourChart.current?.resize())
     ro.observe(hourRef.current)
     return () => ro.disconnect()
-  }, [hourData, themeV])
+  }, [hourData, hourRange, themeV])
 
   // 趋势折线：轨迹数（左轴）+ 距离 km（右轴）
   useEffect(() => {
@@ -433,7 +408,7 @@ export default function Activities() {
       </Card>
 
       {/* 轨迹频率统计：已完成轨迹按开始时间小时分桶（今天 / 最近 7 天 / 最近 30 天合计），时间档独立于上方概况 */}
-      <Card className="page-card" title="轨迹频率统计（按开始时间）" style={{ marginBottom: 16 }}>
+      <Card className="page-card" title="轨迹频率统计（按开始时间 · 日均）" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: 8 }}>
           <span style={{ fontSize: 13, color: 'var(--td-text-color-secondary, #4e5969)' }}>时间范围</span>
           <RangeButtons options={HOUR_RANGES} value={hourRange} onChange={setHourRange} />
