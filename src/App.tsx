@@ -13,6 +13,7 @@ import Leaderboard from './pages/Leaderboard'
 import Topics from './pages/Topics'
 import Notifications from './pages/Notifications'
 import Points from './pages/Points'
+import PointsItems from './pages/PointsItems'
 import { getToken, setToken, saveUsername, adminApi } from './api'
 
 function LoginPage() {
@@ -102,6 +103,7 @@ export default function App() {
                 <Route path="/users" element={<Users />} />
                 <Route path="/users/:id" element={<UserDetail />} />
                 <Route path="/points" element={<Points />} />
+                <Route path="/points-items" element={<PointsItems />} />
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/footprints" element={<Footprints />} />
                 <Route path="/campaigns" element={<Campaigns />} />
