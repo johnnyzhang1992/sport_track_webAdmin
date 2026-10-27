@@ -33,6 +33,8 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
   const [source, setSource] = useState<'admin' | 'system'>('admin')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  // 部分失败/回补失败的回执：必须常驻弹窗里，关掉再点一次重发会造成重复发放
+  const [result, setResult] = useState<PointGrantResult | null>(null)
 
   // 重开 / 换道具即清空上一单的名单与参数：发放名单最忌讳残留
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
     setCount(1)
     setSource('admin')
     setNote('')
+    setResult(null)
   }, [visible, item?.id])
 
   const search = async () => {
@@ -86,24 +89,42 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
         source,
         note: note.trim(),
       })
-      // refundFailed > 0 表示多占的库存没能原路退回：卡已发出，必须人工核对，不能报成功
-      if (res.refundFailed > 0) {
-        MessagePlugin.warning(`已发出 ${res.granted} 张，但 ${res.refundFailed} 张库存回补失败，请人工核对库存`)
-      } else if (res.failed.length > 0) {
-        const first = res.failed[0]
-        MessagePlugin.warning(
-          `已发出 ${res.granted} 张；${res.failed.length} 人失败（${first.reason}${res.failed.length > 1 ? ' 等' : ''}）`,
-        )
-      } else {
-        MessagePlugin.success(`已发出 ${res.granted} 张`)
-      }
+      // 已落库的卡不回滚：无论整单成功还是部分失败都刷新父页（目录/概况/发放记录），界面不能停在旧库存
       onIssued(res)
-      onClose()
+      if (res.failed.length === 0 && res.refundFailed === 0) {
+        MessagePlugin.success(`已发出 ${res.granted} 张`)
+        onClose()
+        return
+      }
+      // 部分失败：留在弹窗里逐个点名。操作员看不到名单就会把整批再发一次，已成功的用户会拿到重复卡。
+      setResult(res)
+      // 成功的人从待发放名单里移除：再次确认只重试失败的人，不会把已发出的再发一遍
+      const failedIds = new Set(res.failed.map((f) => f.userId))
+      setSelected((prev) => prev.filter((u) => failedIds.has(u.id)))
     } catch (e) {
       MessagePlugin.error((e as Error).message)
     } finally {
       setSaving(false)
     }
+  }
+
+  /** 失败名单复制成「userId \t uid \t 昵称 \t 原因」，便于贴进工单/对账 */
+  const copyFailed = () => {
+    if (!result) return
+    const text = result.failed
+      .map((f) => {
+        const u = selected.find((x) => x.id === f.userId)
+        return [f.userId, u?.uid ? String(u.uid) : '', u?.nickname ?? '', f.reason].join('\t')
+      })
+      .join('\n')
+    if (!navigator.clipboard) {
+      MessagePlugin.warning('当前环境不支持剪贴板')
+      return
+    }
+    navigator.clipboard
+      .writeText(text)
+      .then(() => MessagePlugin.success(`已复制 ${result.failed.length} 条失败记录`))
+      .catch((e) => MessagePlugin.error((e as Error).message))
   }
 
   return (
@@ -227,6 +248,89 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
               : `将发出 ${need} 张，${
                   item.unlimited ? '该道具不限量，不扣减库存' : `扣减库存 ${need} 张（当前 ${item.stock.toLocaleString()}）`
                 }`}
+          </div>
+        )}
+
+        {/* 部分失败的回执：常驻可读、可复制；两个信号各自独立，谁也藏不住谁 */}
+        {result && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 13, color: '#4e5969' }}>
+              本次已发出 <b>{result.granted}</b> 张
+              {result.failed.length > 0 ? `，${result.failed.length} 人未发出` : ''}
+              。已发出的卡不会回滚，请勿整批重发。
+            </div>
+
+            {result.failed.length > 0 && (
+              <div
+                style={{
+                  border: '1px solid #fbd2d2',
+                  borderRadius: 6,
+                  background: '#fff5f5',
+                  padding: '8px 10px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#b32a2a' }}>
+                    未发放用户（{result.failed.length}）
+                  </span>
+                  <Button size="small" variant="text" theme="danger" onClick={copyFailed}>
+                    复制失败名单
+                  </Button>
+                </div>
+                <div style={{ fontSize: 12, color: '#8a93a6', marginTop: 4 }}>
+                  已成功的用户已从待发放名单移除，再次确认只会重试下面这些人。
+                </div>
+                <div style={{ maxHeight: 168, overflow: 'auto', marginTop: 6 }}>
+                  {result.failed.map((f) => {
+                    const u = selected.find((x) => x.id === f.userId)
+                    return (
+                      <div
+                        key={f.userId}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'baseline',
+                          gap: 8,
+                          padding: '3px 0',
+                          fontSize: 12,
+                          borderBottom: '1px solid #f6e0e0',
+                        }}
+                      >
+                        <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', flexShrink: 0 }}>
+                          {f.userId}
+                        </span>
+                        <span
+                          style={{
+                            minWidth: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            color: '#4e5969',
+                          }}
+                        >
+                          {u ? `${u.nickname || '微信用户'}${u.uid ? ` · UID ${u.uid}` : ''}` : '—'}
+                        </span>
+                        <span style={{ marginLeft: 'auto', flexShrink: 0, color: '#b32a2a' }}>{f.reason}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {result.refundFailed > 0 && (
+              <div
+                style={{
+                  border: '1px solid #ffe3b3',
+                  borderRadius: 6,
+                  background: '#fff9f0',
+                  padding: '8px 10px',
+                  fontSize: 13,
+                  color: '#a45b00',
+                }}
+              >
+                库存回补失败 <b>{result.refundFailed}</b> 张：多预占的库存没有退回（卡已发出，不影响上面的发放），请到「改库存」人工核对。
+              </div>
+            )}
           </div>
         )}
       </div>

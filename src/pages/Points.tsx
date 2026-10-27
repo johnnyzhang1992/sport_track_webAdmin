@@ -40,12 +40,15 @@ export default function Points() {
 
   // 用户积分列表
   const [data, setData] = useState<PointsUserRow[]>([])
-  const [total, setTotal] = useState(0)
+  // null = 还没拿到过数据：标题与分页不能声称「0 条」（0 是「真的是零」）
+  const [total, setTotal] = useState<number | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [sort, setSort] = useState<TableSort>({ sortBy: 'balance', descending: true })
+  // 请求序号：快速翻页/排序时只应用最后一次请求的结果，迟到的响应不能覆盖新页
+  const reqSeq = useRef(0)
 
   // 行点击的详情弹窗（PointsUserDialog）：记录点击行，关闭时清空即卸载
   const [detail, setDetail] = useState<{ id: string; nickname: string } | null>(null)
@@ -53,6 +56,7 @@ export default function Points() {
   useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
 
   const load = (p: number, kw = keyword, s = sort, ps?: number) => {
+    const seq = ++reqSeq.current
     setLoading(true)
     const size = ps ?? pageSize
     const sortBy = (s as { sortBy?: string })?.sortBy || ''
@@ -60,11 +64,18 @@ export default function Points() {
     adminApi
       .pointsUsers(p, size, kw, sortBy, order)
       .then((d) => {
+        if (seq !== reqSeq.current) return
         setData(d.items)
         setTotal(d.total)
       })
-      .catch(() => setData([]))
-      .finally(() => setLoading(false))
+      .catch(() => {
+        if (seq !== reqSeq.current) return
+        setData([])
+        setTotal(null)
+      })
+      .finally(() => {
+        if (seq === reqSeq.current) setLoading(false)
+      })
   }
 
   useEffect(() => {
@@ -216,7 +227,7 @@ export default function Points() {
         </Card>
       </div>
 
-      <Card className="page-card" title={`用户积分列表（${total}）`}>
+      <Card className="page-card" title={`用户积分列表（${total === null ? '—' : total}）`}>
         <Space style={{ marginBottom: 16 }}>
           <Input
             placeholder="搜索昵称 / UID"
@@ -296,7 +307,8 @@ export default function Points() {
           ]}
           empty="暂无积分数据"
           pagination={{
-            total,
+            total: total ?? 0,
+            totalContent: total === null ? '—' : `共 ${total} 条数据`,
             current: page,
             pageSize,
             showJumper: true,

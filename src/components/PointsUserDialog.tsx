@@ -226,7 +226,9 @@ export default function PointsUserDialog({ visible, userId, nickname, onClose }:
               { colKey: 'bizDate', title: '业务日期', width: 110 },
             ]}
             pagination={{
+              // 首屏未回来前不声称「0 条」：totalContent 用 '—' 顶掉默认的总条数
               total: records?.total ?? 0,
+              totalContent: records ? `共 ${records.total} 条数据` : '—',
               current: recPage,
               pageSize: PAGE_SIZE,
               showJumper: true,
@@ -270,6 +272,7 @@ export default function PointsUserDialog({ visible, userId, nickname, onClose }:
             ]}
             pagination={{
               total: cards?.length ?? 0,
+              totalContent: cards ? `共 ${cards.length} 条数据` : '—',
               current: cardPage,
               pageSize: PAGE_SIZE,
               showJumper: true,

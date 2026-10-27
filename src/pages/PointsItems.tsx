@@ -49,11 +49,11 @@ const effectText = (row: PointItemRow) =>
 /** 库存状态文案：不限量时数字只是展示位，别让人以为库存是真的 */
 const stockText = (s: PointItemStockState) => `${s.stock.toLocaleString()}${s.unlimited ? '（不限量）' : ''}`
 
-/** 导出文件名用本地日期：人群包按天替换，日期就是这次导出的批次 */
-function todayStr(): string {
-  const d = new Date()
+/** 导出文件名用北京时间的「当天」：名单按东八区日期分桶，文件名必须与数据同一天（设备时区在近午夜会差一天） */
+function beijingTodayStr(): string {
+  const d = new Date(Date.now() + 8 * 3600 * 1000)
   const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`
 }
 
 /**
@@ -63,6 +63,8 @@ function todayStr(): string {
 export default function PointsItems() {
   const [overview, setOverview] = useState<PointItemsOverview | null>(null)
   const [items, setItems] = useState<PointItemRow[]>([])
+  // 首次取数成功前不显示「0」：0 是「真的是零」，未加载不等于零
+  const [itemsLoaded, setItemsLoaded] = useState(false)
   const [itemsLoading, setItemsLoading] = useState(false)
   const [tab, setTab] = useState('items')
 
@@ -87,7 +89,10 @@ export default function PointsItems() {
     setItemsLoading(true)
     adminApi
       .pointsItems()
-      .then(setItems)
+      .then((rows) => {
+        setItems(rows)
+        setItemsLoaded(true)
+      })
       .catch((e) => MessagePlugin.error((e as Error).message))
       .finally(() => setItemsLoading(false))
   }
@@ -176,7 +181,12 @@ export default function PointsItems() {
     setExporting(true)
     try {
       const rows = await adminApi.adFreeRoster()
-      const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
+      // Excel 会把 = + - @ 开头的单元格当公式执行（昵称可被用户控制）：先加单引号强制按文本，再照旧双引号转义
+      const cell = (v: string | number) => {
+        const s = String(v)
+        const safe = /^[=+\-@]/.test(s) ? `'${s}` : s
+        return `"${safe.replace(/"/g, '""')}"`
+      }
       const lines = [
         ['openid', 'uid', 'nickname', 'adFreeUntilDate'].map(cell).join(','),
         ...rows.map((r) => [r.openid, r.uid, r.nickname, r.adFreeUntilDate].map(cell).join(',')),
@@ -185,7 +195,7 @@ export default function PointsItems() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `ad-free-roster-${todayStr()}.csv`
+      a.download = `ad-free-roster-${beijingTodayStr()}.csv`
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -234,7 +244,7 @@ export default function PointsItems() {
 
       <Card className="page-card">
         <Tabs value={tab} onChange={(v) => setTab(v as string)}>
-          <Tabs.TabPanel value="items" label={`道具列表（${items.length}）`}>
+          <Tabs.TabPanel value="items" label={`道具列表（${itemsLoaded ? items.length : '—'}）`}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, margin: '4px 0 12px' }}>
               <Button theme="primary" onClick={() => setFormState({ row: null })}>
                 新建道具
