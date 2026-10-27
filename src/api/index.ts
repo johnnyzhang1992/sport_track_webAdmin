@@ -332,14 +332,14 @@ export interface NotificationItem {
   updatedAt: number
 }
 
-/** 专题图片上传：url 是裸链（入库用它），previewUrl 带签名（私有桶，展示用） */
-export async function uploadTopicImage(file: File): Promise<{ url: string; previewUrl: string }> {
+/** 管理端图片上传（专题图 / 道具图同一套闸门）：url 是裸链（入库用它），previewUrl 带签名（私有桶，展示用） */
+async function uploadAdminImage(path: string, file: File): Promise<{ url: string; previewUrl: string }> {
   const headers: Record<string, string> = {}
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
   const fd = new FormData()
   fd.append('file', file)
-  const res = await fetch(`${API_BASE}/admin/topics/upload`, { method: 'POST', headers, body: fd })
+  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: fd })
   if (res.status === 401) {
     redirectToLogin()
     throw new Error('登录已过期，请重新登录')
@@ -347,6 +347,16 @@ export async function uploadTopicImage(file: File): Promise<{ url: string; previ
   const json = await res.json().catch(() => ({ success: false, message: '响应解析失败' }))
   if (!json.success) throw new Error(json.message || `上传失败(${res.status})`)
   return json.data as { url: string; previewUrl: string }
+}
+
+/** 专题图片上传 */
+export async function uploadTopicImage(file: File): Promise<{ url: string; previewUrl: string }> {
+  return uploadAdminImage('/admin/topics/upload', file)
+}
+
+/** 道具图上传 */
+export async function uploadPointItemImage(file: File): Promise<{ url: string; previewUrl: string }> {
+  return uploadAdminImage('/admin/points/items/image', file)
 }
 
 /** 作废轨迹清理预览（列表接口每次刷新带回；真删要显式调 purgeCancelled） */
@@ -512,6 +522,305 @@ export const adminApi = {
     request<{ range: HourStatsRange; data: HourStatsPoint[] }>(`/admin/login-hour-stats?range=${range}`),
   getChinaMap: () => request<any>('/geo/china-map'),
   getProvinceMap: (adcode: number) => request<any>(`/geo/province-map?adcode=${adcode}`),
+  // ==================== 积分管理 · 概况与双趋势 ====================
+  // 概况按 PointRecord.type 聚合，故意不下发 totalSpent（它混了撤回，不能当消耗用）
+  pointsOverview: () => request<PointsOverview>('/admin/points/overview'),
+  // days 只认 7/30/90（其余服务端 400）；缺日补 0，data.length 恒等于 days
+  pointsTrend: (days: PointsTrendDays = 30) =>
+    request<{ days: number; data: PointsTrendBucket[] }>(`/admin/points/trend?days=${days}`),
+  // ==================== 积分管理 · 用户积分 ====================
+  // 列表：keyword 搜昵称/UID，sortBy 只认 balance / lastEarnedAt / totalEarned / exchanges
+  pointsUsers: (page = 1, pageSize = 20, keyword = '', sortBy = '', order = '') => {
+    const p = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+    if (keyword) p.set('keyword', keyword)
+    if (sortBy) p.set('sortBy', sortBy)
+    if (order) p.set('order', order)
+    return request<PointsUserList>(`/admin/points/users?${p}`)
+  },
+  pointsUser: (id: string) => request<PointsUserDetail>(`/admin/points/users/${id}`),
+  pointsUserRecords: (id: string, page = 1, pageSize = 20, type = '') => {
+    const p = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+    if (type) p.set('type', type)
+    return request<PointsUserRecordList>(`/admin/points/users/${id}/records?${p}`)
+  },
+  pointsUserCards: (id: string) => request<PointsUserCardRow[]>(`/admin/points/users/${id}/cards`),
+  // ==================== 积分管理 · 道具目录与发放 ====================
+  // 列表行带 id 与 previewUrl；create/update 回执用的主键叫 _id
+  pointsItems: () => request<PointItemRow[]>('/admin/points/items'),
+  createPointItem: (input: PointItemInput) =>
+    request<SavedPointItemRow>('/admin/points/items', { method: 'POST', body: input }),
+  // PUT 覆盖整行内容：十个内容字段必传（缺一个 400），stock/unlimited 一律不写
+  updatePointItem: (id: string, input: PointItemInput) =>
+    request<SavedPointItemRow>(`/admin/points/items/${id}`, { method: 'PUT', body: input }),
+  // 库存改写传目标值不是增量，回执是两个字段各自的 {before, after}
+  setPointItemStock: (id: string, patch: { stock?: number; unlimited?: boolean }) =>
+    request<{ before: PointItemStockState; after: PointItemStockState }>(
+      `/admin/points/items/${id}/stock`,
+      { method: 'PATCH', body: patch },
+    ),
+  // 后台发放：userIds 是名单、count 是每个用户几张；整单库存不足 400，单个用户失败只跳过
+  grantPointItem: (id: string, input: PointGrantInput) =>
+    request<PointGrantResult>(`/admin/points/items/${id}/grant`, { method: 'POST', body: input }),
+  pointIssuances: (q: PointIssuanceQuery = {}) => {
+    const p = new URLSearchParams({ page: String(q.page ?? 1), pageSize: String(q.pageSize ?? 20) })
+    if (q.itemKey) p.set('itemKey', q.itemKey)
+    if (q.source) p.set('source', q.source)
+    if (q.userId) p.set('userId', q.userId)
+    if (q.keyword) p.set('keyword', q.keyword)
+    return request<PointIssuanceList>(`/admin/points/issuances?${p}`)
+  },
+  pointItemsOverview: () => request<PointItemsOverview>('/admin/points/items/overview'),
+  // 免广告名单：全后台唯一下发 openid 的出口（导出人群包用）
+  adFreeRoster: () => request<AdFreeRosterRow[]>('/admin/points/ad-free/roster'),
+}
+
+/** 积分概况（GET /admin/points/overview）：全部按 PointRecord.type 聚合，没有 totalSpent */
+export interface PointsOverview {
+  /** 毛发放：Σ delta (delta > 0) */
+  earnedGross: number
+  /** 撤回：type 以 _rollback 结尾的 |delta| 之和 */
+  rolledBack: number
+  /** 净发放 = earnedGross − rolledBack */
+  earnedNet: number
+  /** 兑换消耗：Σ |delta| (type = exchange) */
+  spentExchange: number
+  /** 过期回收：Σ |delta| (type = expire) */
+  spentExpire: number
+  /** 流通余额：Σ PointAccount.balance */
+  balance: number
+  /** 今日签到人数（含补签，按人去重） */
+  todaySigninUsers: number
+  /** 近 7 天（含今天）签到人数 */
+  weekSigninUsers: number
+  /** 累计签到人数（全表 distinct） */
+  totalSigninUsers: number
+  /** 持卡未使用人数（unused 且未过期） */
+  cardsUnusedUsers: number
+}
+
+/** 趋势档位：只有这三档（其余 days 服务端 400） */
+export type PointsTrendDays = 7 | 30 | 90
+
+/** 趋势桶：缺日补 0，data.length 恒等于 days */
+export interface PointsTrendBucket {
+  date: string
+  signinUsers: number
+  makeupUsers: number
+  earned: number
+  exchanged: number
+  expired: number
+}
+
+export interface PointsUserRow {
+  id: string
+  /** 缺号（未补号用户）为 0 */
+  uid: number
+  nickname: string
+  balance: number
+  /** 累计获得 = 毛发放（撤回前口径，不扣 rolledBack） */
+  totalEarned: number
+  /** 兑换次数（type=exchange 的流水条数） */
+  exchanges: number
+  /** 持卡未使用张数 */
+  cardsUnused: number
+  /** 最后发放时刻（epoch ms）；从未发放为 0 */
+  lastEarnedAt: number
+}
+
+export interface PointsUserList {
+  total: number
+  page: number
+  pageSize: number
+  items: PointsUserRow[]
+}
+
+export interface PointsUserDetail extends PointsUserRow {
+  avatarUrl: string
+  /** 撤回（含补签撤回等 _rollback 族） */
+  rolledBack: number
+  spentExchange: number
+  spentExpire: number
+  /** 累计消耗 = 兑换 + 过期（不含撤回） */
+  totalSpent: number
+  /** 累计签到天数（distinct dateKey，含补签） */
+  signinDays: number
+  streakDay: number
+  /** 免广告权益到期时刻（epoch ms）；无权益为 0 */
+  adFreeUntil: number
+}
+
+/** 积分明细行（列表与弹窗 Tab 共用） */
+export interface PointsRecordRow {
+  id: string
+  type: string
+  title: string
+  /** 正数为发放、负数为扣减 */
+  delta: number
+  balanceAfter: number
+  /** 业务日期（东八区 YYYY-MM-DD） */
+  bizDate: string
+  refType: string
+  refId: string
+  createdAt: number
+}
+
+export interface PointsUserRecordList {
+  items: PointsRecordRow[]
+  total: number
+  balance: number
+  page: number
+  pageSize: number
+}
+
+export type PointCardStatus = 'unused' | 'used' | 'expired'
+
+/** 用户全部道具卡（含后台手动/系统赠送）；状态由服务端实时推导 */
+export interface PointsUserCardRow {
+  id: string
+  itemKey: string
+  itemName: string
+  source: string
+  sourceText: string
+  status: PointCardStatus
+  statusText: string
+  createdAt: number
+  expiresAt: number
+  usedForDate: string
+  activatedAt: number
+  benefitDays: number
+  grantedBy: string
+  note: string
+}
+
+export type PointItemEffectKind = 'makeup' | 'ad_free'
+
+/** 道具入参：新建时除 key/name/price/validDays/effect 外可省略；PUT 的十个内容字段全必传 */
+export interface PointItemInput {
+  key: string
+  name: string
+  subtitle?: string
+  description?: string
+  notes?: string[]
+  price: number
+  validDays: number
+  effect: { kind: PointItemEffectKind; days: number }
+  stock?: number
+  unlimited?: boolean
+  active?: boolean
+  sortOrder?: number
+  /** 入库裸链（预览取 previewUrl） */
+  image?: string
+}
+
+/** 管理端目录行（含下架项）：id 是主键，previewUrl 是签名链 */
+export interface PointItemRow {
+  id: string
+  key: string
+  name: string
+  subtitle: string
+  description: string
+  notes: string[]
+  price: number
+  validDays: number
+  effect: { kind: PointItemEffectKind; days: number }
+  stock: number
+  unlimited: boolean
+  active: boolean
+  sortOrder: number
+  image: string
+  previewUrl: string
+  exchangeCount: number
+  grantCount: number
+}
+
+/** create/update 回执：主键叫 _id，其余同目录行；不返回兑换数/发放数 */
+export type SavedPointItemRow = Omit<PointItemRow, 'id' | 'exchangeCount' | 'grantCount'> & { _id: string }
+
+/** 库存改写的改前/改后（stock 与 unlimited 两个字段各自的当前值） */
+export interface PointItemStockState {
+  stock: number
+  unlimited: boolean
+}
+
+/** 后台发放入参：source 只接受 admin / system，count 是每个用户几张 */
+export interface PointGrantInput {
+  userIds: string[]
+  count?: number
+  source?: 'admin' | 'system'
+  note?: string
+}
+
+export interface PointGrantResult {
+  /** 实际落卡张数 */
+  granted: number
+  /** 逐个失败原因（用户不存在等），不影响已发出的 */
+  failed: { userId: string; reason: string }[]
+  /** 回补失败的库存张数：>0 需人工核对 */
+  refundFailed: number
+}
+
+export type PointIssuanceSource = 'exchange' | 'admin' | 'system'
+
+/** 发放记录行（以卡为主体，三来源都在） */
+export interface PointIssuanceRow {
+  id: string
+  userId: string
+  uid: number
+  nickname: string
+  itemKey: string
+  /** 目录被改名后跟随新名；道具被删为空串 */
+  itemName: string
+  source: PointIssuanceSource
+  sourceText: string
+  createdAt: number
+  expiresAt: number
+  /** 实时推导：unused 且已过 expiresAt 算 expired */
+  status: PointCardStatus
+  statusText: string
+  usedForDate: string
+  activatedAt: number
+  benefitDays: number
+  grantedBy: string
+  note: string
+}
+
+export interface PointIssuanceQuery {
+  itemKey?: string
+  source?: string
+  userId?: string
+  /** 持卡人昵称或 UID */
+  keyword?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface PointIssuanceList {
+  total: number
+  page: number
+  pageSize: number
+  items: PointIssuanceRow[]
+}
+
+/** 道具概况（GET /points/items/overview）：bySource 恒为三行，相加等于 totalIssued */
+export interface PointItemsOverview {
+  totalIssued: number
+  bySource: { source: PointIssuanceSource; count: number }[]
+  byItem: { itemKey: string; itemName: string; count: number }[]
+  /** 累计消耗积分（Σ |exchange delta|） */
+  totalSpentPoints: number
+  /** 生效中免广告人数（等于当天名单行数） */
+  adFreeUsers: number
+}
+
+/** 免广告名单行：openid 只在这里下发，用于导出 We分析 人群包 */
+export interface AdFreeRosterRow {
+  openid: string
+  uid: number
+  nickname: string
+  /** 权益到期时刻（epoch ms） */
+  adFreeUntil: number
+  /** 到期日的东八区日期串（YYYY-MM-DD） */
+  adFreeUntilDate: string
 }
 
 export interface LoginLogItem {
