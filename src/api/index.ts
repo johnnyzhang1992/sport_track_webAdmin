@@ -321,7 +321,6 @@ export interface TopicItem {
   updatedAt: number
 }
 
-/** 系统通知（首页单行入口 + 详情页，纯文本正文） */
 /** 广告位（后台管理）：目前只支持模板广告（原生模板 ad-custom） */
 export interface AdSlotRow {
   id: string
@@ -345,6 +344,7 @@ export interface AdSlotInput {
   sortOrder: number
 }
 
+/** 系统通知（首页单行入口 + 详情页，纯文本正文） */
 export interface NotificationItem {
   id: string
   title: string
