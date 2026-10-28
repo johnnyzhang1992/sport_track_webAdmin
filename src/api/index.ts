@@ -322,6 +322,29 @@ export interface TopicItem {
 }
 
 /** 系统通知（首页单行入口 + 详情页，纯文本正文） */
+/** 广告位（后台管理）：目前只支持模板广告（原生模板 ad-custom） */
+export interface AdSlotRow {
+  id: string
+  /** 端上代码引用的稳定标识，创建后不可改 */
+  key: string
+  name: string
+  /** 流量主后台的广告单元 id（adunit-xxx） */
+  unitId: string
+  kind: 'template'
+  active: boolean
+  sortOrder: number
+  createdAt: number
+  updatedAt: number
+}
+
+export interface AdSlotInput {
+  key?: string
+  name: string
+  unitId: string
+  active: boolean
+  sortOrder: number
+}
+
 export interface NotificationItem {
   id: string
   title: string
@@ -399,6 +422,13 @@ export const adminApi = {
     request<NotificationItem>('/admin/notifications', { method: 'POST', body }),
   updateNotification: (id: string, body: Partial<NotificationItem>) =>
     request<NotificationItem>(`/admin/notifications/${id}`, { method: 'PUT', body }),
+
+  // ==================== 广告管理（目前只支持模板广告） ====================
+  adSlots: () => request<AdSlotRow[]>('/admin/ads'),
+  createAdSlot: (body: AdSlotInput) => request<AdSlotRow>('/admin/ads', { method: 'POST', body }),
+  updateAdSlot: (id: string, body: AdSlotInput) =>
+    request<AdSlotRow>(`/admin/ads/${id}`, { method: 'PUT', body }),
+  deleteAdSlot: (id: string) => request<null>(`/admin/ads/${id}`, { method: 'DELETE' }),
   deleteNotification: (id: string) =>
     request<null>(`/admin/notifications/${id}`, { method: 'DELETE' }),
   users: (page = 1, pageSize = 20, keyword = '', sortBy = '', order = '') =>

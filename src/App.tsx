@@ -12,6 +12,7 @@ import CampaignDetailPage from './pages/CampaignDetail'
 import Leaderboard from './pages/Leaderboard'
 import Topics from './pages/Topics'
 import Notifications from './pages/Notifications'
+import Ads from './pages/Ads'
 import Points from './pages/Points'
 import PointsItems from './pages/PointsItems'
 import { getToken, setToken, saveUsername, adminApi } from './api'
@@ -111,6 +112,7 @@ export default function App() {
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/topics" element={<Topics />} />
                 <Route path="/notifications" element={<Notifications />} />
+                <Route path="/ads" element={<Ads />} />
               </Routes>
             </BasicLayout>
           </Guard>

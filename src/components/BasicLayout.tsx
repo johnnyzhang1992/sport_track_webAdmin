@@ -1,23 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Button, Dialog, Input, MessagePlugin } from 'tdesign-react'
-import {
-  ArrowLineLeft,
-  ArrowLineRight,
-  Bell,
-  ChartLineUp,
-  Coin,
-  Footprints,
-  Gift,
-  List,
-  MapTrifold,
-  MoonStars,
-  Sun,
-  Tag,
-  Trophy,
-  Users,
-  UsersThree,
-} from '@phosphor-icons/react'
+import { ArrowLineLeft, ArrowLineRight, Bell, ChartLineUp, Coin, Footprints, Gift, List, MapTrifold, MoonStars, Sun, Tag, Trophy, Users, UsersThree, Megaphone } from '@phosphor-icons/react'
 import { getTheme, toggleTheme } from '../utils/theme'
 import type { MenuValue } from 'tdesign-react'
 import { clearToken, adminApi, getUsername } from '../api'
@@ -29,14 +13,15 @@ const MENU_COLLAPSED_KEY = 'adminMenuCollapsed'
 const MENUS = [
   { value: '/dashboard', label: '数据概览', icon: <ChartLineUp size={18} /> },
   { value: '/users', label: '用户管理', icon: <Users size={18} /> },
-  { value: '/points', label: '积分管理', icon: <Coin size={18} /> },
-  { value: '/points-items', label: '积分道具', icon: <Gift size={18} /> },
   { value: '/activities', label: '轨迹管理', icon: <MapTrifold size={18} /> },
   { value: '/footprints', label: '足迹管理', icon: <Footprints size={18} /> },
   { value: '/campaigns', label: '一起运动活动', icon: <UsersThree size={18} /> },
   { value: '/leaderboard', label: '运动榜', icon: <Trophy size={18} /> },
   { value: '/topics', label: '专题管理', icon: <Tag size={18} /> },
   { value: '/notifications', label: '系统通知', icon: <Bell size={18} /> },
+  { value: '/ads', label: '广告管理', icon: <Megaphone size={18} /> },
+  { value: '/points', label: '积分管理', icon: <Coin size={18} /> },
+  { value: '/points-items', label: '积分道具', icon: <Gift size={18} /> },
 ]
 
 export default function BasicLayout({ children }: { children: React.ReactNode }) {
