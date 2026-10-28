@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Table, Tag, Select, Loading, MessagePlugin } from 'tdesign-react'
 import { adminApi, type LeaderboardData, type LeaderboardRegions, type LeaderboardRankRow } from '../api'
 import { TYPE_LABELS, fmtDuration, fmtPace } from '../utils/format'
+import UserAvatar from '../components/UserAvatar'
 
 /**
  * 运动榜（管理端）：与小程序运动榜同口径
@@ -174,9 +175,10 @@ export default function Leaderboard() {
                 cell: ({ row }) => {
                   const r = row as LeaderboardRankRow
                   return (
-                    <span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <UserAvatar url={r.avatarUrl} name={r.name} size={24} />
                       {r.name}
-                      <Tag size="small" style={{ marginLeft: 8 }} theme="default">
+                      <Tag size="small" theme="default">
                         {GENDER_LABELS[r.gender] ?? '未知'}
                       </Tag>
                     </span>

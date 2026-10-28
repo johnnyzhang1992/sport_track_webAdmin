@@ -5,6 +5,7 @@ import * as echarts from 'echarts'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { adminApi, type CampaignDetail, type CampaignMemberRow } from '../api'
 import CampaignMemberTracksDialog from '../components/CampaignMemberTracksDialog'
+import UserAvatar from '../components/UserAvatar'
 import { fmtDateTime, fmtDuration, fmtKm, typeLabel } from '../utils/format'
 import { campaignStatusMeta } from '../utils/campaign-status'
 
@@ -46,7 +47,16 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 type MemberCol = PrimaryTableCol<CampaignMemberRow>
 
 const memberColumns = (openTracks: (userId: string, name: string) => void): MemberCol[] => [
-  { colKey: 'name', title: '昵称', cell: ({ row }) => <span style={{ fontWeight: 500 }}>{row.name}</span> },
+  {
+    colKey: 'name',
+    title: '昵称',
+    cell: ({ row }) => (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 500, minWidth: 0 }}>
+        <UserAvatar url={row.avatarUrl} name={row.name} size={24} />
+        {row.name}
+      </span>
+    ),
+  },
   { colKey: 'uid', title: 'UID', width: 90 },
   {
     colKey: 'role',
@@ -284,7 +294,16 @@ export default function CampaignDetailPage() {
               data={detail.leaderboard}
               columns={[
                 { colKey: 'rank', title: '名次', width: 80, align: 'center' },
-                { colKey: 'name', title: '昵称' },
+                {
+                  colKey: 'name',
+                  title: '昵称',
+                  cell: ({ row }) => (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <UserAvatar url={row.avatarUrl} name={row.name} size={24} />
+                      {row.name}
+                    </span>
+                  ),
+                },
                 { colKey: 'distance', title: '距离 (km)', align: 'center', cell: ({ row }) => fmtKm(row.distance) },
                 { colKey: 'count', title: '次数', align: 'center' },
                 { colKey: 'duration', title: '时长', align: 'center', cell: ({ row }) => fmtDuration(row.duration) },

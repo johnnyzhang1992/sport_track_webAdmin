@@ -6,6 +6,7 @@ import type { TableSort } from 'tdesign-react'
 import { adminApi, type ActivityStatsRange, type ActivityStatsSection, type ActivityGeoStats, type PurgePreview, type HourStatsRange, type HourStatsPoint } from '../api'
 import { typeLabel, STATUS_LABELS, fmtKm, fmtDuration, fmtDateTime } from '../utils/format'
 import ActivityDetailDialog from '../components/ActivityDetailDialog'
+import UserAvatar from '../components/UserAvatar'
 import FootprintMap from '../components/FootprintMap'
 import RangeButtons from '../components/RangeButtons'
 import PhotoCell from '../components/PhotoCell'
@@ -16,6 +17,8 @@ interface Activity {
   id: string
   userId: string
   userNickname: string
+  /** 头像签名链；没上传头像为空串 */
+  userAvatarUrl: string
   userGender: number
   type: string
   status: string
@@ -500,9 +503,12 @@ export default function Activities() {
               colKey: 'userNickname',
               title: '用户',
               cell: ({ row }) => (
-                <Button theme="primary" variant="text" style={{ padding: 0 }} onClick={() => navigate(`/users/${row.userId}`)}>
-                  {row.userNickname || '微信用户'}
-                </Button>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <UserAvatar url={row.userAvatarUrl} name={row.userNickname} size={24} />
+                  <Button theme="primary" variant="text" style={{ padding: 0 }} onClick={() => navigate(`/users/${row.userId}`)}>
+                    {row.userNickname || '微信用户'}
+                  </Button>
+                </span>
               ),
             },
             { colKey: 'userGender', title: '性别', width: 70, cell: ({ row }) => row.userGender === 1 ? <Tag theme="primary">男</Tag> : row.userGender === 2 ? <Tag theme="danger">女</Tag> : <span style={{ color: 'var(--td-text-color-placeholder, #bbb)' }}>未知</span> },

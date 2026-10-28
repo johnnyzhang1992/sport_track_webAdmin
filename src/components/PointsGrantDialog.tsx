@@ -177,7 +177,7 @@ export default function PointsGrantDialog({ visible, item, onClose, onIssued }: 
                       }}
                     >
                       <Checkbox checked={selected.some((x) => x.id === u.id)} onChange={(c) => toggle(u, c)} />
-                      <UserAvatar name={u.nickname} size={24} />
+                      <UserAvatar url={u.avatarUrl} name={u.nickname} size={24} />
                       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {u.nickname || '微信用户'}
                       </span>

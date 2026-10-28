@@ -632,6 +632,8 @@ export interface PointsUserRow {
   /** 缺号（未补号用户）为 0 */
   uid: number
   nickname: string
+  /** 头像签名链；没上传头像为空串（前端走首字占位） */
+  avatarUrl: string
   balance: number
   /** 累计获得 = 毛发放（撤回前口径，不扣 rolledBack） */
   totalEarned: number
@@ -894,6 +896,8 @@ export interface FootprintRecordItem {
   userId: string
   userNickname: string
   userUid: string
+  /** 归属人头像签名链；没上传头像为空串 */
+  userAvatarUrl: string
   title: string
   visitDate: string
   category: string
@@ -956,6 +960,8 @@ export interface CampaignMemberRow {
   role: 'creator' | 'member'
   state: string
   name: string
+  /** 头像签名链；没上传头像为空串 */
+  avatarUrl: string
   uid: number | null
   joinedAt: number | null
   leftAt: number | null
@@ -979,6 +985,8 @@ export interface CampaignLeaderboardRow {
   rank: number
   userId: string
   name: string
+  /** 头像签名链；没上传头像为空串 */
+  avatarUrl: string
   distance: number
   count: number
   duration: number

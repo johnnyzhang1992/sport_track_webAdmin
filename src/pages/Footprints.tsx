@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Table, Input, Button, Select, DateRangePicker } from 'tdesign-react'
 import * as echarts from 'echarts'
+import UserAvatar from '../components/UserAvatar'
 import {
   adminApi,
   type FootprintGeoStats,
@@ -238,9 +239,12 @@ export default function Footprints() {
               title: '用户',
               width: 140,
               cell: ({ row }) => (
-                <Button theme="primary" variant="text" style={{ padding: 0 }} onClick={() => navigate(`/users/${row.userId}`)}>
-                  {row.userNickname || '微信用户'}
-                </Button>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <UserAvatar url={row.userAvatarUrl} name={row.userNickname} size={24} />
+                  <Button theme="primary" variant="text" style={{ padding: 0 }} onClick={() => navigate(`/users/${row.userId}`)}>
+                    {row.userNickname || '微信用户'}
+                  </Button>
+                </span>
               ),
             },
             { colKey: 'userUid', title: 'UID', width: 80, cell: ({ row }) => row.userUid || '—' },

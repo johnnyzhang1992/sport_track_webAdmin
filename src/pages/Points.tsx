@@ -259,7 +259,7 @@ export default function Points() {
               ellipsis: true,
               cell: ({ row }) => (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                  <UserAvatar name={row.nickname} size={28} />
+                  <UserAvatar url={row.avatarUrl} name={row.nickname} size={28} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {row.nickname || '微信用户'}
                   </span>
