@@ -52,12 +52,12 @@ const TYPE_OPTIONS = [
   ...Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label })),
 ]
 
-/** 整榜级占位行的身份：不是某个用户的奖励，别渲染成「微信用户 / 第 0 名」 */
+/** 整榜级占位行的身份：不是某个用户的奖励，别渲染成「微信用户 / 第 0 名」；board_level 本身不加信息，留空 */
 const BOARD_LEVEL_KIND_TEXT: Record<BoardSettlementRow['kind'], string> = {
   payout: '',
   threshold_skip: '门槛未过',
   settled_marker: '完成标记',
-  board_level: '整榜级',
+  board_level: '',
 }
 
 const FILTER_LABEL_STYLE = { fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)' }
@@ -67,8 +67,6 @@ export default function BoardSettlements() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
-  /** 默认视图提示：payoutRowsOnly=true 时整榜级占位行被结构性排除 */
-  const [payoutRowsOnly, setPayoutRowsOnly] = useState(true)
 
   const [status, setStatus] = useState('')
   const [period, setPeriod] = useState<BoardSettlementPeriod | ''>('')
@@ -104,7 +102,6 @@ export default function BoardSettlements() {
         if (!alive) return
         setRows(d.items)
         setTotal(d.total)
-        setPayoutRowsOnly(d.payoutRowsOnly)
       })
       .catch((e) => MessagePlugin.error((e as Error).message))
       .finally(() => {
@@ -119,6 +116,8 @@ export default function BoardSettlements() {
     setPeriodKey(periodKeyInput.trim())
     setUserId(userIdInput.trim())
     setPage(1)
+    // 筛选值没变时上面几个 setState 不触发 effect：「查询」要无条件重拉
+    setReload((n) => n + 1)
   }
 
   const openRevoke = (row: BoardSettlementRow) => {
@@ -226,9 +225,9 @@ export default function BoardSettlements() {
           </Button>
         </div>
         <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', marginBottom: 8 }}>
-          {payoutRowsOnly
-            ? '默认只看发放行；整榜级占位行请把状态筛成「整榜级占位」'
-            : '整榜级占位行只读：不是发放记录，不提供撤回'}
+          {status === 'skipped'
+            ? '整榜级占位行只读：不是发放记录，不提供撤回'
+            : '默认只看发放行；整榜级占位行请把状态筛成「整榜级占位」'}
         </div>
         <Table
           rowKey="id"
@@ -259,7 +258,7 @@ export default function BoardSettlements() {
               cell: ({ row }: { row: BoardSettlementRow }) =>
                 row.boardLevel ? (
                   <Tag theme="default" variant="outline">
-                    整榜级 · {BOARD_LEVEL_KIND_TEXT[row.kind]}
+                    {BOARD_LEVEL_KIND_TEXT[row.kind] ? `整榜级 · ${BOARD_LEVEL_KIND_TEXT[row.kind]}` : '整榜级'}
                   </Tag>
                 ) : (
                   <div style={{ minWidth: 0 }}>

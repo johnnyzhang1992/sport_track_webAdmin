@@ -33,8 +33,12 @@ const PAGE_SIZE = 20
 /** 未加载显示 '—'（0 是「真的是零」，两者不能混） */
 const fmtNum = (v: number | undefined) => (v === undefined ? '—' : v.toLocaleString())
 
-/** InputNumber 清空时给 undefined/''：保留原值，别把 NaN 一路写进请求体 */
-const numOr = (v: number | string | undefined, fallback: number) => {
+/**
+ * InputNumber 清空时给 undefined/''/null：保留 fallback，别把 NaN 一路写进请求体。
+ * 空值不能折成 0 —— 这四个字段里 0 是「不限」，清空输入框不能变成静默放开限额；0 本身是合法值。
+ */
+const numOr = (v: number | string | null | undefined, fallback: number) => {
+  if (v === '' || v == null) return fallback
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) ? n : fallback
 }
