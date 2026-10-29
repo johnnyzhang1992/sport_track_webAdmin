@@ -33,6 +33,12 @@ const PAGE_SIZE = 20
 /** 未加载显示 '—'（0 是「真的是零」，两者不能混） */
 const fmtNum = (v: number | undefined) => (v === undefined ? '—' : v.toLocaleString())
 
+/** InputNumber 清空时给 undefined/''：保留原值，别把 NaN 一路写进请求体 */
+const numOr = (v: number | string | undefined, fallback: number) => {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : fallback
+}
+
 const SOURCE_OPTIONS = [
   { label: '全部来源', value: '' },
   { label: '兑换', value: 'exchange' },
@@ -89,9 +95,17 @@ export default function PointsItems() {
   const [itemsLoading, setItemsLoading] = useState(false)
   const [tab, setTab] = useState('items')
 
-  // 弹窗：新建/编辑（row=null 新建）、改库存、发放
+  // 弹窗：新建/编辑（row=null 新建）、改库存/每日投放、发放
   const [formState, setFormState] = useState<{ row: PointItemRow | null } | null>(null)
-  const [stockEdit, setStockEdit] = useState<{ row: PointItemRow; stock: number; unlimited: boolean } | null>(null)
+  const [stockEdit, setStockEdit] = useState<{
+    row: PointItemRow
+    stock: number
+    unlimited: boolean
+    /** 每日投放总量：0 = 不限 */
+    dailyQuota: number
+    /** 每人每日上限：0 = 不限 */
+    perUserDaily: number
+  } | null>(null)
   const [stockSaving, setStockSaving] = useState(false)
   const [grantItem, setGrantItem] = useState<PointItemRow | null>(null)
 
@@ -255,7 +269,15 @@ export default function PointsItems() {
   const saveStock = async () => {
     if (!stockEdit) return
     if (!Number.isInteger(stockEdit.stock) || stockEdit.stock < 0) {
-      MessagePlugin.warning('库存必须是非负整数')
+      MessagePlugin.warning(`库存必须是非负整数（当前 ${stockEdit.stock}）`)
+      return
+    }
+    if (!Number.isInteger(stockEdit.dailyQuota) || stockEdit.dailyQuota < 0) {
+      MessagePlugin.warning(`每日投放必须是非负整数（当前 ${stockEdit.dailyQuota}）`)
+      return
+    }
+    if (!Number.isInteger(stockEdit.perUserDaily) || stockEdit.perUserDaily < 0) {
+      MessagePlugin.warning(`每人每日上限必须是非负整数（当前 ${stockEdit.perUserDaily}）`)
       return
     }
     setStockSaving(true)
@@ -263,11 +285,14 @@ export default function PointsItems() {
       const res = await adminApi.setPointItemStock(stockEdit.row.id, {
         stock: stockEdit.stock,
         unlimited: stockEdit.unlimited,
+        dailyQuota: stockEdit.dailyQuota,
+        perUserDaily: stockEdit.perUserDaily,
       })
       MessagePlugin.success(`库存 ${stockText(res.before)} → ${stockText(res.after)}`)
       setStockEdit(null)
       refresh()
     } catch (e) {
+      // 服务端 400 的整句中文原样展示（如「dailyQuota 必须是非负整数（收到 …）」），页面不另写一套判定
       MessagePlugin.error((e as Error).message)
     } finally {
       setStockSaving(false)
@@ -489,6 +514,20 @@ export default function PointsItems() {
                   cell: ({ row }: { row: PointItemRow }) => (row.unlimited ? '不限量' : row.stock.toLocaleString()),
                 },
                 {
+                  // 每日投放（0 = 不限）：与库存同属 PATCH /stock 侧，内容编辑不改这两个数
+                  colKey: 'daily',
+                  title: '每日投放',
+                  width: 150,
+                  cell: ({ row }: { row: PointItemRow }) => (
+                    <div style={{ fontSize: 12, lineHeight: '18px' }}>
+                      <div>总量 {row.dailyQuota > 0 ? `${row.dailyQuota.toLocaleString()} 张` : '不限'}</div>
+                      <div style={{ color: 'var(--td-text-color-placeholder, #8a93a6)' }}>
+                        每人 {row.perUserDaily > 0 ? `${row.perUserDaily.toLocaleString()} 张` : '不限'}
+                      </div>
+                    </div>
+                  ),
+                },
+                {
                   colKey: 'active',
                   title: '状态',
                   width: 80,
@@ -525,7 +564,15 @@ export default function PointsItems() {
                         variant="text"
                         theme="primary"
                         size="small"
-                        onClick={() => setStockEdit({ row, stock: row.stock, unlimited: row.unlimited })}
+                        onClick={() =>
+                          setStockEdit({
+                            row,
+                            stock: row.stock,
+                            unlimited: row.unlimited,
+                            dailyQuota: row.dailyQuota,
+                            perUserDaily: row.perUserDaily,
+                          })
+                        }
                       >
                         改库存
                       </Button>
@@ -781,11 +828,12 @@ export default function PointsItems() {
         }}
       />
 
-      {/* 改库存：stock 与 unlimited 同属 PATCH /items/:id/stock，改的是目标值不是增量 */}
+      {/* 改库存 / 每日投放：这四个字段同属 PATCH /items/:id/stock，改的是目标值不是增量；
+          内容编辑（PUT）不碰它们，所以改完内容不会把投放配置打回默认 */}
       <Dialog
-        header={stockEdit ? `改库存 · ${stockEdit.row.name}` : '改库存'}
+        header={stockEdit ? `改库存与投放 · ${stockEdit.row.name}` : '改库存与投放'}
         visible={stockEdit != null}
-        width={460}
+        width={520}
         confirmBtn={{ content: '保存', theme: 'primary', loading: stockSaving }}
         onCancel={() => setStockEdit(null)}
         onClose={() => setStockEdit(null)}
@@ -800,17 +848,7 @@ export default function PointsItems() {
                 min={0}
                 step={1}
                 style={{ width: 160 }}
-                onChange={(v) =>
-                  setStockEdit({
-                    ...stockEdit,
-                    stock:
-                      typeof v === 'number' && Number.isFinite(v)
-                        ? v
-                        : v === undefined || v === null || v === ''
-                          ? stockEdit.stock
-                          : Number(v),
-                  })
-                }
+                onChange={(v) => setStockEdit({ ...stockEdit, stock: numOr(v as number | string | undefined, stockEdit.stock) })}
               />
               <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>目标值（不是增量）</span>
             </div>
@@ -821,6 +859,31 @@ export default function PointsItems() {
                 onChange={(v) => setStockEdit({ ...stockEdit, unlimited: Boolean(v) })}
               />
               <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>开启后兑换/发放不扣库存</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)' }}>每日投放</span>
+              <InputNumber
+                value={stockEdit.dailyQuota}
+                min={0}
+                step={1}
+                style={{ width: 160 }}
+                onChange={(v) => setStockEdit({ ...stockEdit, dailyQuota: numOr(v as number | string | undefined, stockEdit.dailyQuota) })}
+              />
+              <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>张／天，0 = 不限</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 96, flexShrink: 0, textAlign: 'right', color: 'var(--td-text-color-secondary, #4e5969)' }}>每人每日</span>
+              <InputNumber
+                value={stockEdit.perUserDaily}
+                min={0}
+                step={1}
+                style={{ width: 160 }}
+                onChange={(v) => setStockEdit({ ...stockEdit, perUserDaily: numOr(v as number | string | undefined, stockEdit.perUserDaily) })}
+              />
+              <span style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)' }}>张／人／天，0 = 不限</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', paddingLeft: 106 }}>
+              明日 00:00 重置；兑换撞上限时小程序按服务端文案提示
             </div>
           </div>
         )}

@@ -15,6 +15,7 @@ import Notifications from './pages/Notifications'
 import Ads from './pages/Ads'
 import Points from './pages/Points'
 import PointsItems from './pages/PointsItems'
+import BoardSettlements from './pages/BoardSettlements'
 import { getToken, setToken, saveUsername, adminApi } from './api'
 
 function LoginPage() {
@@ -105,6 +106,7 @@ export default function App() {
                 <Route path="/users/:id" element={<UserDetail />} />
                 <Route path="/points" element={<Points />} />
                 <Route path="/points-items" element={<PointsItems />} />
+                <Route path="/board-settlements" element={<BoardSettlements />} />
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/footprints" element={<Footprints />} />
                 <Route path="/campaigns" element={<Campaigns />} />

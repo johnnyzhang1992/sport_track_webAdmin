@@ -266,3 +266,9 @@ body {
 :root[theme-mode='dark'] .login-page {
   background: linear-gradient(135deg, #1c2534 0%, #14181f 60%);
 }
+
+/* 榜单发放台账：整榜级占位行（门槛未过/完成标记）整行压暗，别被读成某个用户的奖励 */
+.board-level-row td {
+  background: var(--td-bg-color-secondarycontainer, #f8f9fb);
+  color: var(--td-text-color-secondary, #4e5969);
+}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Button, Dialog, Input, MessagePlugin } from 'tdesign-react'
-import { ArrowLineLeft, ArrowLineRight, Bell, ChartLineUp, Coin, Footprints, Gift, List, MapTrifold, MoonStars, Sun, Tag, Trophy, Users, UsersThree, Megaphone } from '@phosphor-icons/react'
+import { ArrowLineLeft, ArrowLineRight, Bell, ChartLineUp, Coin, Footprints, Gift, List, MapTrifold, Medal, MoonStars, Sun, Tag, Trophy, Users, UsersThree, Megaphone } from '@phosphor-icons/react'
 import { getTheme, toggleTheme } from '../utils/theme'
 import type { MenuValue } from 'tdesign-react'
 import { clearToken, adminApi, getUsername } from '../api'
@@ -22,6 +22,7 @@ const MENUS = [
   { value: '/ads', label: '广告管理', icon: <Megaphone size={18} /> },
   { value: '/points', label: '积分管理', icon: <Coin size={18} /> },
   { value: '/points-items', label: '积分道具', icon: <Gift size={18} /> },
+  { value: '/board-settlements', label: '榜单发放', icon: <Medal size={18} /> },
 ]
 
 export default function BasicLayout({ children }: { children: React.ReactNode }) {

@@ -582,8 +582,12 @@ export const adminApi = {
   // PUT 覆盖整行内容：十三个内容字段必传（缺一个 400 点名），stock/unlimited 一律不写
   updatePointItem: (id: string, input: PointItemInput) =>
     request<SavedPointItemRow>(`/admin/points/items/${id}`, { method: 'PUT', body: input }),
-  // 库存改写传目标值不是增量，回执是两个字段各自的 {before, after}
-  setPointItemStock: (id: string, patch: { stock?: number; unlimited?: boolean }) =>
+  // 库存/不限量/每日投放改写传目标值不是增量；回执只回 stock/unlimited 两态，
+  // dailyQuota/perUserDaily 以改完重拉目录为准（api 的 StockState 只有这两个字段）
+  setPointItemStock: (
+    id: string,
+    patch: { stock?: number; unlimited?: boolean; dailyQuota?: number; perUserDaily?: number },
+  ) =>
     request<{ before: PointItemStockState; after: PointItemStockState }>(
       `/admin/points/items/${id}/stock`,
       { method: 'PATCH', body: patch },
@@ -616,6 +620,24 @@ export const adminApi = {
   // 代确认收货：用户忘了点确认时由客服代收，只允许 已发货 → 已完成
   completePointOrder: (id: string) =>
     request<PointOrderRow>(`/admin/points/orders/${id}/complete`, { method: 'PATCH' }),
+  // ==================== 积分管理 · 榜单发放台账（spec §4.7） ====================
+  // 默认视图只出发放行（pending/credited/revoked）；status=skipped 才给整榜级占位行。
+  // periodKey 必须与 period 同传（api 会 400），这里只在两者都填时带上。
+  boardSettlements: (q: BoardSettlementQuery = {}) => {
+    const p = new URLSearchParams({ page: String(q.page ?? 1), pageSize: String(q.pageSize ?? 20) })
+    if (q.status) p.set('status', q.status)
+    if (q.period) p.set('period', q.period)
+    if (q.period && q.periodKey) p.set('periodKey', q.periodKey)
+    if (q.type) p.set('type', q.type)
+    if (q.userId) p.set('userId', q.userId)
+    return request<BoardSettlementList>(`/admin/points/board-settlements?${p}`)
+  },
+  // 撤回：note 必填（原文进用户通知），服务端会独立再校验行状态与余额
+  revokeBoardSettlement: (id: string, note: string) =>
+    request<BoardSettlementRevokeResult>(`/admin/points/board-settlements/${id}/revoke`, {
+      method: 'POST',
+      body: { note },
+    }),
 }
 
 /** 积分概况（GET /admin/points/overview）：全部按 PointRecord.type 聚合，没有 totalSpent */
@@ -787,6 +809,10 @@ export interface PointItemRow {
   detailPreviewUrls: string[]
   /** 0 = 不限购 */
   perUserLimit: number
+  /** 每日投放总量：0 = 不限（PATCH /stock 侧独立字段，内容编辑不碰） */
+  dailyQuota: number
+  /** 每人每日上限：0 = 不限（同 PATCH /stock 侧） */
+  perUserDaily: number
   stock: number
   unlimited: boolean
   active: boolean
@@ -1162,4 +1188,86 @@ export interface PointOrderList {
   page: number
   pageSize: number
   items: PointOrderRow[]
+}
+
+// ==================== 积分管理 · 榜单发放台账 ====================
+
+/** 台账行状态：skipped = 整榜级占位（门槛未过/完成标记），永不提供撤回 */
+export type BoardSettlementStatus = 'pending' | 'credited' | 'skipped' | 'revoked'
+
+/** 榜单周期 */
+export type BoardSettlementPeriod = 'week' | 'month' | 'year'
+
+/**
+ * 台账行（GET /admin/points/board-settlements 的 items[]）：
+ * - boardLevel/userId=null：整榜级占位行（不是某个用户的奖励，rank/points 恒为 0）
+ * - canRevoke：只有「发放行且 credited」为 true，撤回按钮按它渲染（服务端会独立再拒一次）
+ * - reason：skipped = 占位说明；revoked = 后台撤回备注原文
+ */
+export interface BoardSettlementRow {
+  id: string
+  type: string
+  /** 中文类型名（未知值回落裸值） */
+  typeLabel: string
+  period: BoardSettlementPeriod
+  periodKey: string
+  /** 周期文案（周＝「2034/03/06 至 2034/03/12 这一周」、月＝「2034年3月」、年＝「2034年」） */
+  periodLabel: string
+  /** 「骑行·周榜」 */
+  board: string
+  userId: string | null
+  uid: number
+  nickname: string
+  rank: number
+  points: number
+  status: BoardSettlementStatus
+  kind: 'payout' | 'threshold_skip' | 'settled_marker' | 'board_level'
+  boardLevel: boolean
+  canRevoke: boolean
+  reason: string
+  recordId: string | null
+  revokedBy: string
+  revokedAt: number
+  createdAt: number
+  updatedAt: number
+}
+
+export interface BoardSettlementList {
+  total: number
+  page: number
+  pageSize: number
+  /** true = 默认「只看发放行」视图（整榜级占位行需显式筛 status=skipped） */
+  payoutRowsOnly: boolean
+  items: BoardSettlementRow[]
+}
+
+export interface BoardSettlementQuery {
+  page?: number
+  pageSize?: number
+  status?: BoardSettlementStatus | ''
+  period?: BoardSettlementPeriod | ''
+  /** 规范周期键（周＝该周周一），必须与 period 同传 */
+  periodKey?: string
+  type?: string
+  userId?: string
+}
+
+/** 撤回结果：notification 为 null 时撤回已成功但通知未发出（按服务端日志补发） */
+export interface BoardSettlementRevokeResult {
+  id: string
+  status: BoardSettlementStatus
+  userId: string
+  type: string
+  period: BoardSettlementPeriod
+  periodKey: string
+  rank: number
+  points: number
+  recordId: string
+  rollbackRecordId: string
+  /** 撤回后余额 */
+  balance: number
+  note: string
+  revokedBy: string
+  revokedAt: number
+  notification: { id: string; title: string; content: string } | null
 }
