@@ -555,6 +555,15 @@ export const adminApi = {
   // ==================== 积分管理 · 概况与双趋势 ====================
   // 概况按 PointRecord.type 聚合，故意不下发 totalSpent（它混了撤回，不能当消耗用）
   pointsOverview: () => request<PointsOverview>('/admin/points/overview'),
+  boardSwitchGet: () =>
+    request<{ enabled: boolean; settleFromText: string; settleFromIsDefault: boolean; hint?: string }>(
+      '/admin/points/board-switch',
+    ),
+  boardSwitchSet: (enabled: boolean) =>
+    request<{ enabled: boolean; settleFromText: string; settleFromIsDefault: boolean; hint?: string }>(
+      '/admin/points/board-switch',
+      { method: 'POST', body: { enabled } },
+    ),
   // days 只认 7/30/90（其余服务端 400）；缺日补 0，data.length 恒等于 days
   pointsTrend: (days: PointsTrendDays = 30) =>
     request<{ days: number; data: PointsTrendBucket[] }>(`/admin/points/trend?days=${days}`),

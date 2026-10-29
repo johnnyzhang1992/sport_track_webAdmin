@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Card, Table, Input, Button, Space } from 'tdesign-react'
+import { Card, Table, Input, Button, Space, Switch, MessagePlugin } from 'tdesign-react'
 import type { TableSort } from 'tdesign-react'
 import * as echarts from 'echarts'
 import {
@@ -30,6 +30,11 @@ const fmtNum = (v: number | undefined) => (v === undefined ? '—' : v.toLocaleS
 export default function Points() {
   // 概况 + 双趋势
   const [overview, setOverview] = useState<PointsOverview | null>(null)
+  // 榜单发放开关（2026-10-29 方案 B）：状态落 app_settings，点一下生效，不用重启
+  const [boardSwitch, setBoardSwitch] = useState<{
+    enabled: boolean; settleFromText: string; settleFromIsDefault: boolean; hint?: string
+  } | null>(null)
+  const [boardSwitchBusy, setBoardSwitchBusy] = useState(false)
   const [range, setRange] = useState<TrendRangeKey>('30')
   const [trend, setTrend] = useState<PointsTrendBucket[]>([])
   const [themeV, setThemeV] = useState(0)
@@ -81,6 +86,7 @@ export default function Points() {
   useEffect(() => {
     load(1, '')
     adminApi.pointsOverview().then(setOverview).catch(() => setOverview(null))
+    adminApi.boardSwitchGet().then(setBoardSwitch).catch(() => setBoardSwitch(null))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -209,6 +215,37 @@ export default function Points() {
               <div style={{ fontSize: 13, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 2 }}>{it.label}</div>
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* 榜单发放开关：钱闸放显眼位；起点只展示（改起点走部署期 env） */}
+      <Card className="page-card" title="榜单奖励发放" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <Switch
+            size="large"
+            loading={boardSwitchBusy}
+            value={boardSwitch?.enabled ?? false}
+            onChange={(v: boolean) => {
+              setBoardSwitchBusy(true)
+              adminApi
+                .boardSwitchSet(v)
+                .then((r) => {
+                  setBoardSwitch(r)
+                  return MessagePlugin.success(v ? '榜单发放已开启' : '榜单发放已关闭')
+                })
+                .catch((e: Error) => MessagePlugin.error(e.message || '操作失败'))
+                .finally(() => setBoardSwitchBusy(false))
+            }}
+          />
+          <span style={{ fontSize: 13, color: 'var(--td-text-color-secondary, #4b525f)' }}>
+            结算起点：{boardSwitch?.settleFromText ?? '—'}
+            {boardSwitch?.settleFromIsDefault ? '（缺省值，可用环境变量 BOARD_SETTLE_FROM 调整）' : ''}
+          </span>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--td-text-color-placeholder, #8a93a6)', marginTop: 10, lineHeight: 1.7 }}>
+          开启后：各运动类型全国榜在周期结束自动给前三名发积分（周 50/30/20 · 月 100/80/50 · 年 500/400/300），
+          单榜参与人数需超过 10 人，并列全发，每人同期最多计 3 个榜（取分值最高的三个）。
+          {boardSwitch?.enabled && boardSwitch?.hint ? ` 提示：${boardSwitch.hint}` : ''}
         </div>
       </Card>
 
