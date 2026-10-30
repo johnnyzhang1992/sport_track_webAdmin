@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button, Dialog, Input, InputNumber, MessagePlugin, Select, Switch, Textarea } from 'tdesign-react'
 import { adminApi, uploadPointItemImage, type PointItemEffectKind, type PointItemInput, type PointItemKind, type PointItemRow } from '../api'
+import { numOr } from '../utils/num-or'
 
 interface Props {
   visible: boolean
@@ -74,12 +75,6 @@ const KIND_OPTIONS = [
   { label: '虚拟道具（发卡到账户）', value: 'virtual' },
   { label: '实物商品（兑换后发货）', value: 'physical' },
 ]
-
-/** InputNumber 清空时给 undefined/''，统一折成 fallback 而不是 NaN（NaN 会一路写进请求体） */
-function numOr(v: number | string | undefined, fallback: number): number {
-  const n = typeof v === 'number' ? v : Number(v)
-  return Number.isFinite(n) ? n : fallback
-}
 
 /** 左标签 / 右控件（与 Notifications / Topics 同一套手写表单） */
 function Field({ label, children, top }: { label: string; children: ReactNode; top?: boolean }) {

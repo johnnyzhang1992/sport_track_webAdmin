@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Checkbox, Dialog, Input, InputNumber, MessagePlugin, Radio, RadioGroup, Tag } from 'tdesign-react'
 import type { PointGrantResult, PointItemRow, PointsUserRow } from '../api'
 import { adminApi } from '../api'
+import { numOr } from '../utils/num-or'
 import UserAvatar from './UserAvatar'
 
 interface Props {
@@ -13,11 +14,6 @@ interface Props {
 }
 
 const MAX_CANDIDATES = 20
-
-function numOr(v: number | string | undefined, fallback: number): number {
-  const n = typeof v === 'number' ? v : Number(v)
-  return Number.isFinite(n) ? n : fallback
-}
 
 /**
  * 后台发放（Task 13）：选用户 → 每人张数 → 来源 → 备注。
