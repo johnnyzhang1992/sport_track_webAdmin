@@ -290,6 +290,17 @@ export default function Activities() {
     setTimeout(() => load(1), 0)
   }
 
+  /** 导出汇总 CSV：按当前类型/状态筛选（keyword/距离等列表过滤不进导出口径，明细见服务端） */
+  const [exporting, setExporting] = useState(false)
+  const handleExportCsv = () => {
+    setExporting(true)
+    adminApi
+      .exportActivitiesSummaryCsv({ type: type || undefined, status: status || undefined })
+      .then((name) => MessagePlugin.success(`已导出 ${name}`))
+      .catch((e) => MessagePlugin.error((e as Error).message))
+      .finally(() => setExporting(false))
+  }
+
   const sec: ActivityStatsSection | undefined = stats?.[range]
   const byStatus = sec?.byStatus ?? []
   const statusMap: Record<string, number> = { finished: 0, in_progress: 0, cancelled: 0 }
@@ -453,6 +464,14 @@ export default function Activities() {
           />
           <Button theme="primary" onClick={handleSearch}>查询</Button>
           <Button variant="outline" onClick={handleReset}>重置</Button>
+          <Button
+            variant="outline"
+            onClick={handleExportCsv}
+            loading={exporting}
+            title="按当前类型/状态筛选导出全部行（昵称/时间/时长/距离/点数，不含明细与照片）"
+          >
+            导出 CSV
+          </Button>
           {/* 入口只留一个按钮，条数与"为什么可删/会保留什么"全在确认弹窗里说 */}
           {purge && purge.wouldDelete > 0 && (
             <Button variant="outline" theme="warning" onClick={runPurge}>清理已作废（{purge.wouldDelete}）</Button>
