@@ -95,6 +95,45 @@ export async function downloadActivityGpx(id: string): Promise<string> {
   return filename
 }
 
+/**
+ * 导出活动汇总 CSV（文件流，同 GPX 下载套路）：昵称/类型/起止时间/三类时长/距离/点数，
+ * 不含坐标明细与照片。上限 2 万行，超限服务端回 JSON 信封原样抛出。
+ */
+export async function exportActivitiesSummaryCsv(params: { userId?: string; type?: string; status?: string } = {}): Promise<string> {
+  const qs = Object.entries(params)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+    .join('&')
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  const res = await fetch(`${API_BASE}/admin/activities/export/summary${qs ? `?${qs}` : ''}`, { headers })
+  if (res.status === 401) {
+    redirectToLogin()
+    throw new Error('登录已过期，请重新登录')
+  }
+  if (!res.ok) {
+    const msg = await res
+      .json()
+      .then((j: { message?: string }) => j?.message)
+      .catch(() => '')
+    throw new Error(msg || `导出失败(${res.status})`)
+  }
+  // filename* 优先（中文文件名），ASCII filename 兜底
+  const cd = res.headers.get('content-disposition') ?? ''
+  const utf8Name = /filename\*=UTF-8''([^;]+)/.exec(cd)?.[1]
+  const filename = utf8Name ? decodeURIComponent(utf8Name) : /filename="([^"]+)"/.exec(cd)?.[1] ?? 'activity-summary.csv'
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+  return filename
+}
+
 /** 统计概况分段（今日/周/月/年/累计） */
 export interface OverviewSection {  count: number
   distance: number // 米
@@ -524,6 +563,7 @@ export const adminApi = {
     request<{ last7Days: number; last30Days: number; last180Days: number; total: number }>(`/admin/users/${id}/login-stats`),
   activityDetail: (id: string) => request<ActivityDetail>(`/admin/activities/${id}`),
   downloadActivityGpx,
+  exportActivitiesSummaryCsv,
   // 预览列按需取整组照片：列表只给 photoCount + 签名首图，一页 100 行 × 多图全签名是白烧 CPU
   activityPhotos: (id: string) =>
     request<ActivityDetail>(`/admin/activities/${id}`).then((d) => flattenMarkerPhotos(d.markers)),
@@ -615,20 +655,6 @@ export const adminApi = {
   pointItemsOverview: () => request<PointItemsOverview>('/admin/points/items/overview'),
   // 免广告名单：积分域内唯一下发 openid 的出口（导出人群包用）
   adFreeRoster: () => request<AdFreeRosterRow[]>('/admin/points/ad-free/roster'),
-  // ===== 实物订单（兑换实物商品产生的发货单）=====
-  // 列表只下发打码手机号；完整号码要在订单详情里看（这里就是同一行数据，不额外脱敏第二次）
-  pointOrders: (q: { status?: string; keyword?: string; page?: number; pageSize?: number } = {}) => {
-    const p = new URLSearchParams({ page: String(q.page ?? 1), pageSize: String(q.pageSize ?? 20) })
-    if (q.status) p.set('status', q.status)
-    if (q.keyword) p.set('keyword', q.keyword)
-    return request<PointOrderList>(`/admin/points/orders?${p}`)
-  },
-  // 发货：只允许 待发货 → 已发货，重复点第二次 api 回 400 点名当前状态
-  shipPointOrder: (id: string, input: { trackingNo: string; trackingCompany?: string }) =>
-    request<PointOrderRow>(`/admin/points/orders/${id}/ship`, { method: 'PATCH', body: input }),
-  // 代确认收货：用户忘了点确认时由客服代收，只允许 已发货 → 已完成
-  completePointOrder: (id: string) =>
-    request<PointOrderRow>(`/admin/points/orders/${id}/complete`, { method: 'PATCH' }),
   // ==================== 积分管理 · 榜单发放台账（spec §4.7） ====================
   // 默认视图只出发放行（pending/credited/revoked）；status=skipped 才给整榜级占位行。
   // periodKey 必须与 period 同传（api 会 400），这里只在两者都填时带上。
@@ -773,9 +799,6 @@ export interface PointsUserCardRow {
 
 export type PointItemEffectKind = 'makeup' | 'ad_free'
 
-/** 道具类型：virtual = 发卡到账户（补签卡/免广告卡）；physical = 实物商品，兑换即生成待发货订单 */
-export type PointItemKind = 'virtual' | 'physical'
-
 /** 道具入参：新建时除 key/name/price/validDays/effect 外可省略；PUT 的十三个内容字段全必传 */
 export interface PointItemInput {
   key: string
@@ -786,11 +809,7 @@ export interface PointItemInput {
   price: number
   validDays: number
   effect: { kind: PointItemEffectKind; days: number }
-  /** 省略 = virtual */
-  kind?: PointItemKind
-  /** 实物详情图（入库裸链，最多 6 张）；省略 = 空数组 */
-  detailImages?: string[]
-  /** 每人限购张数，0 = 不限；实物新建默认 1，虚拟默认 0 */
+  /** 每人限购张数，0 = 不限 */
   perUserLimit?: number
   stock?: number
   unlimited?: boolean
@@ -811,11 +830,6 @@ export interface PointItemRow {
   price: number
   validDays: number
   effect: { kind: PointItemEffectKind; days: number }
-  kind: PointItemKind
-  /** 入库裸链（回填表单时写回它） */
-  detailImages: string[]
-  /** 与 detailImages 一一对应的签名缩略链：<img> 只能用这个，裸链直连 403 */
-  detailPreviewUrls: string[]
   /** 0 = 不限购 */
   perUserLimit: number
   /** 每日投放总量：0 = 不限（PATCH /stock 侧独立字段，内容编辑不碰） */
@@ -1162,41 +1176,6 @@ export interface FootprintGeoStats {
     count: number
     cities: { city: string; count: number }[]
   }[]
-}
-
-/** 实物订单状态机：待发货 →（后台发货）已发货 →（用户确认或后台代确认）已完成 */
-export type PointOrderStatus = 'pending_ship' | 'shipped' | 'completed'
-
-/** 订单行（GET /admin/points/orders）：地址三件套下单时快照，改地址不影响历史单 */
-export interface PointOrderRow {
-  id: string
-  userId: string
-  uid: number
-  nickname: string
-  itemKey: string
-  /** 商品名快照（目录改名不影响历史单读得懂） */
-  itemName: string
-  /** 下单时实付积分 */
-  cost: number
-  receiver: string
-  /** 打码手机号（列表不出完整号码） */
-  phoneMasked: string
-  /** 详细地址 */
-  detail: string
-  status: PointOrderStatus
-  statusText: string
-  trackingNo: string
-  trackingCompany: string
-  createdAt: number
-  shippedAt: number
-  completedAt: number
-}
-
-export interface PointOrderList {
-  total: number
-  page: number
-  pageSize: number
-  items: PointOrderRow[]
 }
 
 // ==================== 积分管理 · 榜单发放台账 ====================
