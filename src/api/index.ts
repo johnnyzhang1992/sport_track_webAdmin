@@ -433,6 +433,80 @@ export interface PurgePreview {
   keptRecent: number
 }
 
+/** ==================== 会员（虚拟支付） ==================== */
+
+export interface PaidProductRow {
+  id: string
+  key: string
+  name: string
+  subtitle: string
+  priceFen: number
+  priceYuanText: string
+  durationDays: number
+  perks: { adFree: boolean; exportBundle: boolean; photoQuota: number; subscribeNotice: boolean }
+  active: boolean
+  sortOrder: number
+  notes: string[]
+  createdAt: number
+  updatedAt: number
+}
+
+export type XpayOrderStatus = 'created' | 'paid' | 'delivered' | 'refunding' | 'refunded' | 'closed'
+
+export interface XpayOrderRow {
+  id: string
+  outTradeNo: string
+  wxOrderId: string
+  userId: string
+  openid: string
+  productKey: string
+  name: string
+  priceFen: number
+  durationDays: number
+  status: XpayOrderStatus
+  channel: '' | 'android' | 'ios'
+  periodStart: number
+  periodEnd: number
+  truncatedAt: number
+  refundedFen: number
+  refundCount: number
+  refundOrderId: string
+  refundReason: string
+  leftFeeFen: number
+  leftFeeAt: number
+  netFen: number
+  lastError: string
+  createdAt: number
+  paidAtText: string
+  periodEndText: string
+}
+
+export interface XpayOrderList {
+  total: number
+  page: number
+  pageSize: number
+  items: XpayOrderRow[]
+}
+
+export interface XpayRefundPreview {
+  leftFeeFen: number
+  suggestFeeFen: number
+  priceFen: number
+  refundedFen: number
+  periodEndText: string
+  truncateToText: string
+  channel: string
+  canRefund: boolean
+  reason?: string
+}
+
+export interface MemberSwitchState {
+  enabled: boolean
+  payConfigured: boolean
+  pushConfigured: boolean
+  hint?: string
+}
+
 export const adminApi = {
   login: (username: string, password: string) =>
     request<{ token: string }>('/admin/login', { method: 'POST', body: { username, password } }),
@@ -673,6 +747,36 @@ export const adminApi = {
       method: 'POST',
       body: { note },
     }),
+  // ==================== 会员（虚拟支付） ====================
+  xpayProducts: () => request<PaidProductRow[]>('/admin/xpay/products'),
+  createXpayProduct: (body: Record<string, unknown>) =>
+    request<PaidProductRow>('/admin/xpay/products', { method: 'POST', body }),
+  updateXpayProduct: (id: string, body: Record<string, unknown>) =>
+    request<PaidProductRow>(`/admin/xpay/products/${id}`, { method: 'PUT', body }),
+  setXpayProductActive: (id: string, active: boolean) =>
+    request<PaidProductRow>(`/admin/xpay/products/${id}/active`, { method: 'PATCH', body: { active } }),
+  setXpayProductSort: (id: string, sortOrder: number) =>
+    request<PaidProductRow>(`/admin/xpay/products/${id}/sort-order`, { method: 'PATCH', body: { sortOrder } }),
+  memberSwitch: () => request<MemberSwitchState>('/admin/xpay/member-switch'),
+  setMemberSwitch: (enabled: boolean) =>
+    request<MemberSwitchState>('/admin/xpay/member-switch', { method: 'POST', body: { enabled } }),
+  xpayOrders: (q: { status?: string; channel?: string; keyword?: string; page?: number; pageSize?: number } = {}) => {
+    const p = new URLSearchParams({ page: String(q.page ?? 1), pageSize: String(q.pageSize ?? 20) })
+    if (q.status) p.set('status', q.status)
+    if (q.channel) p.set('channel', q.channel)
+    if (q.keyword) p.set('keyword', q.keyword)
+    return request<XpayOrderList>(`/admin/xpay/orders?${p}`)
+  },
+  xpayOrder: (id: string) => request<XpayOrderRow>(`/admin/xpay/orders/${id}`),
+  // 三步退款：预览负责刷新可退额度（失败就禁用提交，不许拿库里旧值猜）
+  xpayRefundPreview: (id: string) => request<XpayRefundPreview>(`/admin/xpay/orders/${id}/refund-preview`, { method: 'POST' }),
+  xpayRefund: (id: string, refundFee: number, reason: string) =>
+    request<{ status: string; refundOrderId: string; leftFeeFen: number }>(`/admin/xpay/orders/${id}/refund`, {
+      method: 'POST',
+      body: { refundFee, reason },
+    }),
+  xpayOrderQuery: (id: string) =>
+    request<{ paid: boolean; status: number; leftFeeFen: number }>(`/admin/xpay/orders/${id}/query`, { method: 'POST' }),
 }
 
 /** 积分概况（GET /admin/points/overview）：全部按 PointRecord.type 聚合，没有 totalSpent */

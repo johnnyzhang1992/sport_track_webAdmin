@@ -16,6 +16,8 @@ import Ads from './pages/Ads'
 import Points from './pages/Points'
 import PointsItems from './pages/PointsItems'
 import BoardSettlements from './pages/BoardSettlements'
+import PaidProducts from './pages/PaidProducts'
+import XpayOrders from './pages/XpayOrders'
 import { getToken, setToken, saveUsername, adminApi } from './api'
 
 function LoginPage() {
@@ -107,6 +109,8 @@ export default function App() {
                 <Route path="/points" element={<Points />} />
                 <Route path="/points-items" element={<PointsItems />} />
                 <Route path="/board-settlements" element={<BoardSettlements />} />
+                <Route path="/xpay-products" element={<PaidProducts />} />
+                <Route path="/xpay-orders" element={<XpayOrders />} />
                 <Route path="/activities" element={<Activities />} />
                 <Route path="/footprints" element={<Footprints />} />
                 <Route path="/campaigns" element={<Campaigns />} />
