@@ -277,13 +277,15 @@ export default function XpayOrders() {
               {previewLoading ? '刷新中…' : preview ? `${yuan(preview.leftFeeFen)}` : '—'}
               {preview && `（订单 ${yuan(preview.priceFen)}，已退 ${yuan(preview.refundedFen)}）`}
             </div>
+            <div style={{ color: '#5b6474', fontSize: 13 }}>退款金额（分）</div>
             <InputNumber
-              label="退款金额（分）"
               value={fee ?? undefined}
               min={1}
               max={preview?.leftFeeFen ?? undefined}
               disabled={!preview?.canRefund}
+              style={{ width: 240 }}
               onChange={(v) => setFee(v === undefined ? null : Number(v))}
+              placeholder="建议值见下方"
             />
             {preview?.canRefund && (
               <div style={{ color: '#8a93a6', fontSize: 12, marginTop: -6 }}>
