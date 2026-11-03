@@ -61,6 +61,7 @@ export default function XpayOrders() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [fee, setFee] = useState<number | null>(null)
   const [reason, setReason] = useState('')
+  const [reasonCode, setReasonCode] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const previewSeq = useRef(0)
@@ -89,6 +90,7 @@ export default function XpayOrders() {
     setPreview(null)
     setFee(null)
     setReason('')
+    setReasonCode('')
     setError('')
     setPreviewLoading(true)
     const seq = ++previewSeq.current
@@ -123,10 +125,11 @@ export default function XpayOrders() {
       return
     }
     if (!reason.trim()) { setError('退款备注必填'); return }
+    if (!reasonCode) { setError('请选择退款原因（发给微信的枚举）'); return }
     setSubmitting(true)
     setError('')
     try {
-      const res = await adminApi.xpayRefund(refundRow.id, fee as number, reason.trim())
+      const res = await adminApi.xpayRefund(refundRow.id, fee as number, reason.trim(), reasonCode)
       MessagePlugin.success(res.status === 'refunded' ? '退款已完成' : '退款已发起（处理中以微信通知为准）')
       setRefundRow(null)
       await load()
@@ -295,12 +298,26 @@ export default function XpayOrders() {
             <div style={{ color: '#8a93a6', fontSize: 12 }}>
               本次退款后权益将截断至 {preview?.truncateToText ?? '—'}（与金额无关）
             </div>
+            <div style={{ color: '#5b6474', fontSize: 13 }}>退款原因（发给微信，必选）</div>
+            <Select
+              value={reasonCode || undefined}
+              style={{ width: 240 }}
+              placeholder="选择退款原因"
+              onChange={(v) => setReasonCode(String(v ?? ''))}
+              options={[
+                { value: '1', label: '产品问题，影响使用或效果不佳' },
+                { value: '2', label: '售后问题，无法满足需求' },
+                { value: '3', label: '意愿问题，用户主动退款' },
+                { value: '4', label: '价格问题' },
+                { value: '5', label: '其他原因' },
+              ]}
+            />
             <Input
-              label="备注（必填）"
+              label="备注（存档）"
               value={reason}
               disabled={!preview?.canRefund}
               onChange={(v) => setReason(String(v))}
-              placeholder="写进订单留痕，方便日后与用户核对"
+              placeholder="写进订单留痕，方便日后与用户核对（不发给微信）"
             />
             {error && <div style={{ color: '#d54941', fontSize: 13 }}>{error}</div>}
           </div>

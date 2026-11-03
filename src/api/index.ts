@@ -770,10 +770,10 @@ export const adminApi = {
   xpayOrder: (id: string) => request<XpayOrderRow>(`/admin/xpay/orders/${id}`),
   // 三步退款：预览负责刷新可退额度（失败就禁用提交，不许拿库里旧值猜）
   xpayRefundPreview: (id: string) => request<XpayRefundPreview>(`/admin/xpay/orders/${id}/refund-preview`, { method: 'POST' }),
-  xpayRefund: (id: string, refundFee: number, reason: string) =>
+  xpayRefund: (id: string, refundFee: number, reason: string, reasonCode: string) =>
     request<{ status: string; refundOrderId: string; leftFeeFen: number }>(`/admin/xpay/orders/${id}/refund`, {
       method: 'POST',
-      body: { refundFee, reason },
+      body: { refundFee, reason, reasonCode },
     }),
   xpayOrderQuery: (id: string) =>
     request<{ paid: boolean; status: number; leftFeeFen: number }>(`/admin/xpay/orders/${id}/query`, { method: 'POST' }),
