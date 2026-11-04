@@ -11,7 +11,13 @@ import {
   Table,
   Tag,
 } from 'tdesign-react'
-import { adminApi, type MemberSwitchState, type PaidProductRow } from '../api'
+import {
+  adminApi,
+  type MemberSwitchState,
+  type PaidProductRow,
+  type ReminderSettingsState,
+  type WeeklySportsSettingsState,
+} from '../api'
 import { fenToYuan, yuanToFen } from '../utils/fen-yuan'
 
 const PERK_LABELS: Array<[keyof PaidProductRow['perks'], string]> = [
@@ -60,6 +66,10 @@ const formOf = (r: PaidProductRow): FormState => ({
  */
 export default function PaidProducts() {
   const [sw, setSw] = useState<MemberSwitchState | null>(null)
+  const [rem, setRem] = useState<ReminderSettingsState | null>(null)
+  const [remSaving, setRemSaving] = useState(false)
+  const [weekly, setWeekly] = useState<WeeklySportsSettingsState | null>(null)
+  const [weeklySaving, setWeeklySaving] = useState(false)
   const [rows, setRows] = useState<PaidProductRow[]>([])
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState<FormState | null>(null)
@@ -69,8 +79,15 @@ export default function PaidProducts() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [s, list] = await Promise.all([adminApi.memberSwitch(), adminApi.xpayProducts()])
+      const [s, r, w, list] = await Promise.all([
+        adminApi.memberSwitch(),
+        adminApi.reminderSettings(),
+        adminApi.weeklySportsSettings(),
+        adminApi.xpayProducts(),
+      ])
       setSw(s)
+      setRem(r)
+      setWeekly(w)
       setRows(list)
     } catch (e) {
       MessagePlugin.error((e as Error).message)
@@ -80,6 +97,54 @@ export default function PaidProducts() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  const saveReminder = async () => {
+    if (!rem) return
+    setRemSaving(true)
+    try {
+      const next = await adminApi.saveReminderSettings(rem)
+      setRem(next)
+      MessagePlugin.success('已保存')
+    } catch (e) {
+      MessagePlugin.error((e as Error).message)
+    } finally {
+      setRemSaving(false)
+    }
+  }
+
+  const runReminder = async () => {
+    try {
+      const r = await adminApi.runReminder()
+      MessagePlugin.success(`微信 ${r.sent} 条 · 站内 ${r.inapp} 条 · 跳过 ${r.skipped}`)
+    } catch (e) {
+      MessagePlugin.error((e as Error).message)
+    }
+  }
+
+  const saveWeekly = async () => {
+    if (!weekly) return
+    setWeeklySaving(true)
+    try {
+      const next = await adminApi.saveWeeklySportsSettings(weekly)
+      setWeekly(next)
+      MessagePlugin.success('已保存')
+    } catch (e) {
+      MessagePlugin.error((e as Error).message)
+    } finally {
+      setWeeklySaving(false)
+    }
+  }
+
+  const runWeekly = async () => {
+    try {
+      const r = await adminApi.runWeeklySports()
+      MessagePlugin.success(
+        `微信 ${r.sent} 条 · 无数据 ${r.noData} · 跳过 ${r.skipped} · 失败 ${r.failed}`,
+      )
+    } catch (e) {
+      MessagePlugin.error((e as Error).message)
+    }
+  }
 
   const toggleSwitch = async (on: boolean) => {
     try {
@@ -191,6 +256,65 @@ export default function PaidProducts() {
           <Tag theme={sw?.enabled ? 'success' : 'default'} variant="light">{sw?.enabled ? '已开启' : '已关闭'}</Tag>
           <div style={{ flex: 1 }} />
           <Button onClick={() => setForm(emptyForm())}>新建档位</Button>
+        </div>
+      </Card>
+
+      <Card className="page-card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+          <div style={{ minWidth: 260 }}>
+            <div style={{ fontWeight: 600 }}>会员到期提醒</div>
+            <div style={{ color: '#8a93a6', fontSize: 12 }}>
+              一次性订阅：用户点允许后，到期前 N 天发一条服务通知；没有授权额度时只发站内通知
+            </div>
+          </div>
+          <Switch
+            value={!!rem?.enabled}
+            onChange={(v) => setRem((p) => (p ? { ...p, enabled: !!v } : p))}
+          />
+          <Tag theme={rem?.enabled ? 'success' : 'default'} variant="light">{rem?.enabled ? '已开启' : '已关闭'}</Tag>
+          <span style={{ color: '#4e5969' }}>模板 ID</span>
+          <Input
+            value={rem?.templateId ?? ''}
+            style={{ width: 360 }}
+            onChange={(v) => setRem((p) => (p ? { ...p, templateId: String(v) } : p))}
+          />
+          <span style={{ color: '#4e5969' }}>提前</span>
+          <InputNumber
+            value={rem?.daysBefore ?? 3}
+            min={1}
+            max={30}
+            style={{ width: 100 }}
+            onChange={(v) => setRem((p) => (p ? { ...p, daysBefore: Number(v) || 3 } : p))}
+          />
+          <span style={{ color: '#4e5969' }}>天</span>
+          <div style={{ flex: 1 }} />
+          <Button onClick={runReminder} variant="outline">立即跑一轮</Button>
+          <Button onClick={saveReminder} loading={remSaving}>保存提醒设置</Button>
+        </div>
+      </Card>
+
+      <Card className="page-card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+          <div style={{ minWidth: 260 }}>
+            <div style={{ fontWeight: 600 }}>每周运动数据提醒</div>
+            <div style={{ color: '#8a93a6', fontSize: 12 }}>
+              一次性订阅：每周一 09:00 汇总上周数据
+            </div>
+          </div>
+          <Switch
+            value={!!weekly?.enabled}
+            onChange={(v) => setWeekly((p) => (p ? { ...p, enabled: !!v } : p))}
+          />
+          <Tag theme={weekly?.enabled ? 'success' : 'default'} variant="light">{weekly?.enabled ? '已开启' : '已关闭'}</Tag>
+          <span style={{ color: '#4e5969' }}>模板 ID</span>
+          <Input
+            value={weekly?.templateId ?? ''}
+            style={{ width: 360 }}
+            onChange={(v) => setWeekly((p) => (p ? { ...p, templateId: String(v) } : p))}
+          />
+          <div style={{ flex: 1 }} />
+          <Button onClick={runWeekly} variant="outline">立即跑一轮</Button>
+          <Button onClick={saveWeekly} loading={weeklySaving}>保存设置</Button>
         </div>
       </Card>
 

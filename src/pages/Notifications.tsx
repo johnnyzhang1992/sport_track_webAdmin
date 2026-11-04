@@ -6,6 +6,7 @@ import {
   DialogPlugin,
   Input,
   MessagePlugin,
+  Select,
   Switch,
   Table,
   Tag,
@@ -22,10 +23,23 @@ type NotificationForm = {
   id?: string
   title: string
   content: string
+  category: NotificationItem['category']
   published: boolean
 }
 
-const EMPTY_FORM: NotificationForm = { title: '', content: '', published: false }
+const EMPTY_FORM: NotificationForm = { title: '', content: '', category: 'system', published: false }
+
+const CATEGORY_OPTIONS = [
+  { value: 'system', label: '系统通知' },
+  { value: 'member', label: '会员服务' },
+  { value: 'reward', label: '榜单奖励' },
+]
+
+const CATEGORY_THEME: Record<NotificationItem['category'], 'default' | 'primary' | 'warning'> = {
+  system: 'default',
+  member: 'primary',
+  reward: 'warning',
+}
 
 function fmtTime(ts: number | null): string {
   if (!ts) return '—'
@@ -57,7 +71,13 @@ export default function Notifications() {
 
   const openCreate = () => setForm({ ...EMPTY_FORM })
   const openEdit = (row: NotificationItem) =>
-    setForm({ id: row.id, title: row.title, content: row.content, published: row.published })
+    setForm({
+      id: row.id,
+      title: row.title,
+      content: row.content,
+      category: row.category ?? 'system',
+      published: row.published,
+    })
 
   const save = async () => {
     if (!form) return
@@ -82,10 +102,15 @@ export default function Notifications() {
     setSaving(true)
     try {
       if (form.id) {
-        await adminApi.updateNotification(form.id, { title, content, published: form.published })
+        await adminApi.updateNotification(form.id, {
+          title,
+          content,
+          category: form.category,
+          published: form.published,
+        })
         MessagePlugin.success('已保存')
       } else {
-        await adminApi.createNotification({ ...form, title, content })
+        await adminApi.createNotification({ ...form, title, content, category: form.category })
         MessagePlugin.success('已创建')
       }
       setForm(null)
@@ -123,6 +148,16 @@ export default function Notifications() {
       title: '标题',
       cell: ({ row }: { row: NotificationItem }) => (
         <span style={{ fontWeight: 600 }}>{row.title}</span>
+      ),
+    },
+    {
+      colKey: 'category',
+      title: '分类',
+      width: 110,
+      cell: ({ row }: { row: NotificationItem }) => (
+        <Tag theme={CATEGORY_THEME[row.category ?? 'system']}>
+          {row.categoryText || CATEGORY_OPTIONS.find((o) => o.value === row.category)?.label || '系统通知'}
+        </Tag>
       ),
     },
     {
@@ -168,7 +203,7 @@ export default function Notifications() {
     <Card title="系统通知" style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
         <span style={{ color: '#8a93a6', fontSize: 13 }}>
-          发布后展示在小程序首页顶部；用户打开详情即记已读。正文为纯文本，换行会原样保留。
+          发布后展示在小程序消息中心；用户打开详情即记已读。正文为纯文本，换行会原样保留。
         </span>
         <Button theme="primary" onClick={openCreate}>
           新建通知
@@ -203,6 +238,16 @@ export default function Notifications() {
                 />
                 <span style={{ color: '#4e5969' }}>发布</span>
               </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 76, textAlign: 'right', color: '#4e5969' }}>分类</span>
+              <Select
+                value={form.category}
+                options={CATEGORY_OPTIONS}
+                style={{ width: 180 }}
+                onChange={(v) => setForm({ ...form, category: v as NotificationForm['category'] })}
+              />
             </div>
 
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>

@@ -291,6 +291,7 @@ export default function XpayOrders() {
             {preview?.canRefund && (
               <div style={{ color: '#8a93a6', fontSize: 12, marginTop: -6 }}>
                 建议值 {preview.suggestFeeFen} 分（按剩余天数折算，仅建议、可改）
+                {preview.feeNote && <div style={{ color: '#ad6800' }}>{preview.feeNote}</div>}
               </div>
             )}
             <div style={{ color: '#8a93a6', fontSize: 12 }}>

@@ -388,6 +388,8 @@ export interface NotificationItem {
   id: string
   title: string
   content: string
+  category: 'system' | 'member' | 'reward'
+  categoryText: string
   published: boolean
   publishedAt: number | null
   createdAt: number
@@ -498,6 +500,8 @@ export interface XpayRefundPreview {
   channel: string
   canRefund: boolean
   reason?: string
+  /** 支付超 180 天时平台不退手续费：建议值已扣除的分说明 */
+  feeNote?: string
 }
 
 export interface MemberSwitchState {
@@ -505,6 +509,31 @@ export interface MemberSwitchState {
   payConfigured: boolean
   pushConfigured: boolean
   hint?: string
+}
+
+export interface ReminderSettingsState {
+  enabled: boolean
+  templateId: string
+  daysBefore: number
+}
+
+export interface ReminderRunResult {
+  sent: number
+  inapp: number
+  skipped: number
+  failed: number
+}
+
+export interface WeeklySportsSettingsState {
+  enabled: boolean
+  templateId: string
+}
+
+export interface WeeklySportsRunResult {
+  sent: number
+  noData: number
+  skipped: number
+  failed: number
 }
 
 export const adminApi = {
@@ -626,6 +655,8 @@ export const adminApi = {
       `/admin/campaigns/${campaignId}/member-activities?userId=${encodeURIComponent(userId)}&page=${page}&pageSize=${pageSize}${typeQs}`,
     )
   },
+  setUserRole: (id: string, role: 'user' | 'admin') =>
+    request<{ id: string; role: string }>(`/admin/users/${id}/role`, { method: 'PATCH', body: { role } }),
   userDetail: (id: string) => request<UserDetail>(`/admin/users/${id}`),
   userLoginLogs: (id: string, page = 1, pageSize = 20, startDate?: string, endDate?: string) => {
     let url = `/admin/users/${id}/login-logs?page=${page}&pageSize=${pageSize}`
@@ -758,6 +789,17 @@ export const adminApi = {
   setXpayProductSort: (id: string, sortOrder: number) =>
     request<PaidProductRow>(`/admin/xpay/products/${id}/sort-order`, { method: 'PATCH', body: { sortOrder } }),
   memberSwitch: () => request<MemberSwitchState>('/admin/xpay/member-switch'),
+  reminderSettings: () => request<ReminderSettingsState>('/admin/xpay/reminder-settings'),
+  saveReminderSettings: (body: ReminderSettingsState) =>
+    request<ReminderSettingsState>('/admin/xpay/reminder-settings', { method: 'PUT', body }),
+  runReminder: () =>
+    request<ReminderRunResult>('/admin/xpay/reminder-settings/run', { method: 'POST' }),
+  weeklySportsSettings: () =>
+    request<WeeklySportsSettingsState>('/admin/xpay/weekly-sports-settings'),
+  saveWeeklySportsSettings: (body: WeeklySportsSettingsState) =>
+    request<WeeklySportsSettingsState>('/admin/xpay/weekly-sports-settings', { method: 'PUT', body }),
+  runWeeklySports: () =>
+    request<WeeklySportsRunResult>('/admin/xpay/weekly-sports-settings/run', { method: 'POST' }),
   setMemberSwitch: (enabled: boolean) =>
     request<MemberSwitchState>('/admin/xpay/member-switch', { method: 'POST', body: { enabled } }),
   xpayOrders: (q: { status?: string; channel?: string; keyword?: string; page?: number; pageSize?: number } = {}) => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Tag, Input, Button, Space, Dialog, MessagePlugin, Textarea } from 'tdesign-react'
+import { Card, Table, Tag, Input, Button, Space, Dialog, DialogPlugin, MessagePlugin, Textarea } from 'tdesign-react'
 import type { TableSort } from 'tdesign-react'
 import * as echarts from 'echarts'
 import { adminApi, type UserStats, type UserTrendPoint, type UserTrendRange, type UserGeoStats, type HourStatsRange, type HourStatsPoint } from '../api'
@@ -17,6 +17,7 @@ interface User {
   avatarUrl: string
   gender: number
   uid: string
+  role: 'user' | 'admin'
   weightKg: number
   heightCm: number
   createdAt: string
@@ -395,6 +396,14 @@ export default function Users() {
             { colKey: 'gender', title: '性别', width: 70, cell: ({ row }) => row.gender === 1 ? <Tag theme="primary">男</Tag> : row.gender === 2 ? <Tag theme="danger">女</Tag> : <span style={{ color: 'var(--td-text-color-placeholder, #bbb)' }}>未知</span> },
             { colKey: 'uid', title: 'UID', width: 90, ellipsis: true, cell: ({ row }) => row.uid || '—' },
             {
+              colKey: 'role',
+              title: '角色',
+              width: 100,
+              cell: ({ row }) => row.role === 'admin'
+                ? <Tag theme="warning" variant="light">管理员</Tag>
+                : <Tag variant="light">普通用户</Tag>,
+            },
+            {
               colKey: 'note',
               title: '备注',
               width: 140,
@@ -430,6 +439,33 @@ export default function Users() {
                     onClick={() => setNoteEdit({ id: row.id, nickname: row.nickname || '微信用户', note: row.note || '' })}
                   >
                     备注
+                  </Button>
+                  <Button
+                    size="small"
+                    theme="warning"
+                    variant="text"
+                    onClick={() => {
+                      const next = row.role === 'admin' ? 'user' : 'admin'
+                      const dialog = DialogPlugin.confirm({
+                        header: '调整角色',
+                        body: `确定将该用户调整为「${next === 'admin' ? '管理员（将接收每日数据统计通知）' : '普通用户'}」？`,
+                        confirmBtn: { content: '确认调整', theme: next === 'admin' ? 'primary' : 'warning' },
+                        onConfirm: async () => {
+                          try {
+                            await adminApi.setUserRole(row.id, next)
+                            MessagePlugin.success('角色已更新')
+                            dialog.destroy()
+                            load(page, keyword, sort, pageSize)
+                          } catch (e) {
+                            MessagePlugin.error((e as Error).message)
+                            dialog.destroy()
+                          }
+                        },
+                        onClose: () => dialog.destroy(),
+                      })
+                    }}
+                  >
+                    {row.role === 'admin' ? '取消管理员' : '设为管理员'}
                   </Button>
                 </>
               ),
