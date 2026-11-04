@@ -573,8 +573,8 @@ export const adminApi = {
   deleteAdSlot: (id: string) => request<null>(`/admin/ads/${id}`, { method: 'DELETE' }),
   deleteNotification: (id: string) =>
     request<null>(`/admin/notifications/${id}`, { method: 'DELETE' }),
-  users: (page = 1, pageSize = 20, keyword = '', sortBy = '', order = '') =>
-    request<{ total: number; page: number; items: unknown[] }>(`/admin/users?page=${page}&pageSize=${pageSize}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}${sortBy ? `&sortBy=${sortBy}` : ''}${order ? `&order=${order}` : ''}`),
+  users: (page = 1, pageSize = 20, keyword = '', role = '', sortBy = '', order = '') =>
+    request<{ total: number; page: number; items: unknown[] }>(`/admin/users?page=${page}&pageSize=${pageSize}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}${role ? `&role=${role}` : ''}${sortBy ? `&sortBy=${sortBy}` : ''}${order ? `&order=${order}` : ''}`),
   adminStats: () =>
     request<{ today: AdminStatsCell; week: AdminStatsCell; month: AdminStatsCell }>('/admin/stats'),
   adminTrend: (type = 'day') =>

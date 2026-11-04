@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Tag, Input, Button, Space, Dialog, DialogPlugin, MessagePlugin, Textarea } from 'tdesign-react'
+import { Card, Table, Tag, Input, Button, Space, Dialog, DialogPlugin, MessagePlugin, Textarea, Select } from 'tdesign-react'
 import type { TableSort } from 'tdesign-react'
 import * as echarts from 'echarts'
 import { adminApi, type UserStats, type UserTrendPoint, type UserTrendRange, type UserGeoStats, type HourStatsRange, type HourStatsPoint } from '../api'
@@ -51,6 +51,8 @@ export default function Users() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
+  // 角色筛选：'' 全部 / 'admin' 仅管理员 / 'user' 仅普通用户（与后端 /admin/users 的 role 参数同名）
+  const [role, setRole] = useState('')
   const [sort, setSort] = useState<TableSort>({ sortBy: 'lastLoginAt', descending: true })
   const [pageSize, setPageSize] = useState(20)
 
@@ -87,13 +89,13 @@ export default function Users() {
 
   useEffect(() => onThemeChange(() => setThemeV((v) => v + 1)), [])
 
-  const load = (p: number, kw = keyword, s = sort, ps?: number) => {
+  const load = (p: number, kw = keyword, s = sort, ps?: number, r = role) => {
     setLoading(true)
     const size = ps ?? pageSize
     const sortBy = (s as { sortBy?: string })?.sortBy || ''
     const order = (s as { descending?: boolean })?.descending ? 'desc' : 'asc'
     adminApi
-      .users(p, size, kw, sortBy, order)
+      .users(p, size, kw, r, sortBy, order)
       .then((d) => {
         setData(d.items as User[])
         setTotal(d.total)
@@ -217,6 +219,13 @@ export default function Users() {
   const handleSearch = () => {
     setPage(1)
     load(1, keyword)
+  }
+
+  // 切角色筛选：回第一页，keyword/sort 保持
+  const handleRoleChange = (v: string) => {
+    setRole(v)
+    setPage(1)
+    load(1, keyword, sort, undefined, v)
   }
 
   const fmtTime = (t: string) => {
@@ -352,6 +361,16 @@ export default function Users() {
 
       <Card className="page-card" title={`用户列表（${total}）`}>
         <Space style={{ marginBottom: 16 }}>
+          <Select
+            value={role}
+            style={{ width: 130 }}
+            onChange={(v) => handleRoleChange(String(v))}
+            options={[
+              { value: '', label: '全部角色' },
+              { value: 'admin', label: '仅管理员' },
+              { value: 'user', label: '仅普通用户' },
+            ]}
+          />
           <Input
             placeholder="搜索昵称"
             value={keyword}
