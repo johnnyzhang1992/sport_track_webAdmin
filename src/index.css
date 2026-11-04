@@ -259,6 +259,13 @@ body {
   min-width: 0;
   overflow-x: hidden; /* ECharts canvas 固定像素宽，窗口缩窄时不撑出横向滚动条 */
 }
+/* 宽表格只在表格区域内横向滚动（列多时 <table> 的 min-content 会超出卡片），
+   TDesign 的 .t-table__content 默认不开 overflow，会一路撑到 .app-content；
+   收在这里：页面本身不再随表格横滚，滚动条落在表格底部。
+   只圈 .app-content——弹窗走 body portal，列少不会超宽，不受影响 */
+.app-content .t-table__content {
+  overflow-x: auto;
+}
 :root[theme-mode='dark'] .page-card {
   border: 1px solid var(--td-component-stroke, #2a3140);
   box-shadow: none;

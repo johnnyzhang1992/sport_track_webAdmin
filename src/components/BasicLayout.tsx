@@ -187,7 +187,9 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
             <Button size="small" theme="danger" variant="text" onClick={handleLogout}>退出登录</Button>
           </div>
         </Header>
-        <Content className="app-content" style={{ padding: 24, overflow: 'auto' }}>{children}</Content>
+        {/* 只管纵向滚动；横向必须收口（overflow-x: hidden 在 .app-content 类里），
+            内联写 overflow:auto 会连横向一起放开，宽表格就把整页撑出横向滚动 */}
+        <Content className="app-content" style={{ padding: 24, overflowY: 'auto' }}>{children}</Content>
       </Layout>
 
       <Dialog
