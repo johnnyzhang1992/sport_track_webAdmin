@@ -194,8 +194,6 @@ export default function XpayOrders() {
           <Button
             variant="text"
             size="small"
-            disabled={row.channel === 'ios'}
-            title={row.channel === 'ios' ? 'iOS 订单由用户在 App Store 申请' : ''}
             onClick={() => openRefund(row)}
           >
             退款
