@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Button, Dialog, Input, MessagePlugin } from 'tdesign-react'
-import { ArrowLineLeft, ArrowLineRight, Bell, ChartLineUp, Coin, Diamond, Footprints, Gift, List, MapTrifold, Medal, MoonStars, Receipt, Sun, Tag, Trophy, Users, UsersThree, Megaphone } from '@phosphor-icons/react'
+import { ArrowLineLeft, ArrowLineRight, Bell, ChartLineUp, Coin, Diamond, Footprints, Gift, List, MapTrifold, Medal, MoonStars, Receipt, Sliders, Sun, Tag, Trophy, Users, UsersThree, Megaphone } from '@phosphor-icons/react'
 import { getTheme, toggleTheme } from '../utils/theme'
 import type { MenuValue } from 'tdesign-react'
 import { clearToken, adminApi, getUsername } from '../api'
@@ -9,6 +9,9 @@ import { clearToken, adminApi, getUsername } from '../api'
 const { Header, Content, Aside } = Layout
 
 const MENU_COLLAPSED_KEY = 'adminMenuCollapsed'
+
+// 「运营管理」二级组的 value：组本身不对应路由，不进 onChange
+const OPS_GROUP_VALUE = 'ops'
 
 const MENUS = [
   { value: '/dashboard', label: '数据概览', icon: <ChartLineUp size={18} /> },
@@ -19,6 +22,10 @@ const MENUS = [
   { value: '/leaderboard', label: '运动榜', icon: <Trophy size={18} /> },
   { value: '/topics', label: '专题管理', icon: <Tag size={18} /> },
   { value: '/notifications', label: '系统通知', icon: <Bell size={18} /> },
+]
+
+// 运营管理组内顺序：广告 → 积分（管理/道具）→ 榜单发放 → 会员（商品/订单）
+const OPS_MENUS = [
   { value: '/ads', label: '广告管理', icon: <Megaphone size={18} /> },
   { value: '/points', label: '积分管理', icon: <Coin size={18} /> },
   { value: '/points-items', label: '积分道具', icon: <Gift size={18} /> },
@@ -30,6 +37,15 @@ const MENUS = [
 export default function BasicLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const currentPath = '/' + (location.pathname.split('/')[1] || '')
+  // 运营管理组的展开状态（受控）：刷新落在组内页面时默认展开，用户手动收起后保持
+  const [opsExpanded, setOpsExpanded] = useState<MenuValue[]>(() =>
+    OPS_MENUS.some((m) => m.value === currentPath) ? [OPS_GROUP_VALUE] : [],
+  )
+  // 前进/后退切进组内页面也要展开，否则激活项藏在收起的组里看不见
+  useEffect(() => {
+    if (OPS_MENUS.some((m) => m.value === currentPath)) setOpsExpanded([OPS_GROUP_VALUE])
+  }, [currentPath])
   const [pwdVisible, setPwdVisible] = useState(false)
   const [oldPwd, setOldPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
@@ -107,7 +123,9 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
             width={[200, 64]}
             collapsed={collapsed}
             className="side-menu"
-            value={'/' + (location.pathname.split('/')[1] || '')}
+            value={currentPath}
+            expanded={opsExpanded}
+            onExpand={(v) => setOpsExpanded(v)}
             onChange={handleMenu}
           >
             {MENUS.map((m) => (
@@ -115,6 +133,13 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
                 {m.label}
               </Menu.MenuItem>
             ))}
+            <Menu.SubMenu key={OPS_GROUP_VALUE} value={OPS_GROUP_VALUE} icon={<Sliders size={18} />} title="运营管理">
+              {OPS_MENUS.map((m) => (
+                <Menu.MenuItem key={m.value} value={m.value} icon={m.icon} tooltipProps={{ content: m.label }}>
+                  {m.label}
+                </Menu.MenuItem>
+              ))}
+            </Menu.SubMenu>
           </Menu>
           <div className={`aside-bottom ${collapsed ? 'aside-bottom-collapsed' : ''}`}>
             <button
