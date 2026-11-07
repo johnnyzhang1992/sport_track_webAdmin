@@ -495,7 +495,7 @@ export default function UserDetail() {
                 {
                   colKey: 'photos',
                   title: '图片',
-                  width: 170,
+                  width: 130, // 缩略图 36 + 可点张数：去掉独立「预览」按钮后 130 装得下
                   cell: ({ row }) => <PhotoCell row={row} load={adminApi.activityPhotos} />,
                 },
                 { colKey: 'startTime', title: '开始时间', cell: ({ row }) => fmtDateTime(row.startTime) },
@@ -710,7 +710,7 @@ export default function UserDetail() {
                 {
                   colKey: 'photos',
                   title: '图片',
-                  width: 170,
+                  width: 130, // 缩略图 36 + 可点张数：去掉独立「预览」按钮后 130 装得下
                   cell: ({ row }) => <PhotoCell row={row} load={adminApi.footprintPhotos} />,
                 },
                 { colKey: 'createdAt', title: '记录时间', width: 170, cell: ({ row }) => fmtDateTime(row.createdAt) },

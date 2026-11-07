@@ -521,11 +521,21 @@ export default function Activities() {
             {
               colKey: 'userNickname',
               title: '用户',
+              // TDesign v1.18 默认 fixed 布局：无 width 的列只兜底 80px，装不下 nowrap 昵称
+              // 就会溢出盖到「性别」格上；定宽 + 昵称截断（悬停看全名）
+              width: 170,
               cell: ({ row }) => (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, width: '100%' }}>
                   <UserAvatar url={row.userAvatarUrl} name={row.userNickname} size={24} />
-                  <Button theme="primary" variant="text" style={{ padding: 0 }} onClick={() => navigate(`/users/${row.userId}`)}>
-                    {row.userNickname || '微信用户'}
+                  <Button
+                    theme="primary"
+                    variant="text"
+                    style={{ padding: 0, minWidth: 0, flex: '0 1 auto', overflow: 'hidden' }}
+                    onClick={() => navigate(`/users/${row.userId}`)}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {row.userNickname || '微信用户'}
+                    </span>
                   </Button>
                 </span>
               ),
@@ -557,7 +567,7 @@ export default function Activities() {
             {
               colKey: 'photos',
               title: '图片',
-              width: 180,
+              width: 130, // 缩略图 36 + 可点张数：去掉独立「预览」按钮后 130 装得下
               cell: ({ row }) => <PhotoCell row={row} load={adminApi.activityPhotos} />,
             },
             { colKey: 'startTime', title: '开始时间', cell: ({ row }) => fmtDateTime(row.startTime) },

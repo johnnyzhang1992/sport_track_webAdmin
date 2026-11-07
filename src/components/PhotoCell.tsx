@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, ImageViewer, MessagePlugin } from 'tdesign-react'
+import { ImageViewer, MessagePlugin } from 'tdesign-react'
 
 /** 列表行里与图片有关的三个字段（轨迹 / 足迹同形态，后端两个列表口径一致） */
 export interface PhotoRow {
@@ -9,7 +9,7 @@ export interface PhotoRow {
 }
 
 /**
- * 列表「图片」列：36px 缩略图 + 张数 + 预览。
+ * 列表「图片」列：36px 缩略图 + 可点张数（点缩略图或「N 张」都触发预览）。
  * 整组照片按行懒取（列表只下发签名首图，一页 100 行 × 多图会白烧签名），
  * 取回后交给 ImageViewer 全屏看。
  */
@@ -57,7 +57,7 @@ export default function PhotoCell({
       {row.coverPhoto &&
         (thumbFailed ? (
           <span
-            title="缩略图取不到：OSS 上这个对象已不存在（历史数据），点预览可看到具体是哪几张"
+            title="缩略图取不到：OSS 上这个对象已不存在（历史数据），点张数可看到具体是哪几张"
             style={{
               width: 36,
               height: 36,
@@ -84,10 +84,18 @@ export default function PhotoCell({
             style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', cursor: 'pointer', flex: 'none' }}
           />
         ))}
-      <span style={{ whiteSpace: 'nowrap' }}>{row.photoCount} 张</span>
-      <Button size="small" variant="text" loading={busy} onClick={open}>
-        预览
-      </Button>
+      {/* 「N 张」就是预览入口（原独立「预览」按钮是第三个重复入口，白占 ~50px 列宽） */}
+      <span
+        onClick={busy ? undefined : open}
+        title={busy ? '照片加载中' : '点击看大图'}
+        style={{
+          whiteSpace: 'nowrap',
+          color: 'var(--td-brand-color, #0052d9)',
+          cursor: busy ? 'default' : 'pointer',
+        }}
+      >
+        {busy ? '加载中…' : `${row.photoCount} 张`}
+      </span>
       {urls && (
         <ImageViewer
           visible

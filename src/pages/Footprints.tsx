@@ -237,12 +237,20 @@ export default function Footprints() {
             {
               colKey: 'userNickname',
               title: '用户',
-              width: 140,
+              // fixed 布局下列宽定死后昵称必须截断，否则 nowrap 溢出盖到「UID」格
+              width: 160,
               cell: ({ row }) => (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, width: '100%' }}>
                   <UserAvatar url={row.userAvatarUrl} name={row.userNickname} size={24} />
-                  <Button theme="primary" variant="text" style={{ padding: 0 }} onClick={() => navigate(`/users/${row.userId}`)}>
-                    {row.userNickname || '微信用户'}
+                  <Button
+                    theme="primary"
+                    variant="text"
+                    style={{ padding: 0, minWidth: 0, flex: '0 1 auto', overflow: 'hidden' }}
+                    onClick={() => navigate(`/users/${row.userId}`)}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {row.userNickname || '微信用户'}
+                    </span>
                   </Button>
                 </span>
               ),
@@ -274,7 +282,7 @@ export default function Footprints() {
             {
               colKey: 'photos',
               title: '图片',
-              width: 170,
+              width: 130, // 缩略图 36 + 可点张数：去掉独立「预览」按钮后 130 装得下
               cell: ({ row }) => <PhotoCell row={row} load={adminApi.footprintPhotos} />,
             },
             { colKey: 'createdAt', title: '记录时间', width: 170, cell: ({ row }) => fmtDateTime(row.createdAt) },

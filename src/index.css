@@ -259,6 +259,15 @@ body {
   min-width: 0;
   overflow-x: hidden; /* ECharts canvas 固定像素宽，窗口缩窄时不撑出横向滚动条 */
 }
+/* flex 爆宽的真正源头在这里：内层 Layout 是 row 方向的 flex 项，.t-layout 只给了 flex:auto，
+   min-width 默认 auto——自动最小值取内容的 min-content，宽表格顺着这条链把它撑到内容宽，
+   Content/Card 全被拉宽（表格在里头「装得下」，.t-table__content 的滚动条永远不会出现），
+   整包溢出 100vh 外壳，body 出横向滚动、左菜单都被顶出屏。
+   min-width:0 才允许它收缩到可用宽度；内容改由 .app-content 收口、表格内部滚动。
+   注意 min-width:0 写在 .app-content 上没用——min-width 只抬下限，拦不住对父级的贡献 */
+.t-layout--with-sider > .t-layout {
+  min-width: 0;
+}
 /* 宽表格只在表格区域内横向滚动（列多时 <table> 的 min-content 会超出卡片），
    TDesign 的 .t-table__content 默认不开 overflow，会一路撑到 .app-content；
    收在这里：页面本身不再随表格横滚，滚动条落在表格底部。
