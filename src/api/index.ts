@@ -388,7 +388,7 @@ export interface NotificationItem {
   id: string
   title: string
   content: string
-  category: 'system' | 'member' | 'reward'
+  category: 'system' | 'member' | 'reward' | 'sports'
   categoryText: string
   published: boolean
   publishedAt: number | null

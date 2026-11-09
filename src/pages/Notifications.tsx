@@ -33,12 +33,14 @@ const CATEGORY_OPTIONS = [
   { value: 'system', label: '系统通知' },
   { value: 'member', label: '会员服务' },
   { value: 'reward', label: '榜单奖励' },
+  { value: 'sports', label: '运动数据' },
 ]
 
-const CATEGORY_THEME: Record<NotificationItem['category'], 'default' | 'primary' | 'warning'> = {
+const CATEGORY_THEME: Record<NotificationItem['category'], 'default' | 'primary' | 'success' | 'warning'> = {
   system: 'default',
   member: 'primary',
   reward: 'warning',
+  sports: 'success',
 }
 
 function fmtTime(ts: number | null): string {
